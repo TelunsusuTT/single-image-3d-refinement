@@ -44,3 +44,6 @@ data/hy3dpaint_train_examples/*/
 *.safetensors
 *.pt
 *.pth
+
+# Local backup files
+*.bak_before_*
