@@ -1,4 +1,6 @@
-# Phase 1A Runbook
+# Phase 1 Runbook
+
+## Phase 1A Data Format Checks
 
 Run these commands from the project root:
 
@@ -59,3 +61,33 @@ one row per sample for quick spreadsheet inspection.
 
 These checks only inspect file packaging. They do not train a model or verify
 image contents.
+
+## Phase 1B Candidate Asset Planning
+
+Phase 1B is only a planning step for selecting 1-3 texture-heavy assets. Do not
+download large datasets, run Blender, run Hunyuan, or submit Slurm jobs yet.
+
+Inspect the candidate CSV template:
+
+```bash
+head -n 5 data/candidates/asset_candidate_template.csv
+```
+
+Inspect the seeded placeholder candidates:
+
+```bash
+head -n 12 data/candidates/phase1b_candidates_seed.csv
+```
+
+Filter texture-heavy candidates that have not been rejected:
+
+```bash
+python scripts/filter_asset_candidates.py --input-csv data/candidates/phase1b_candidates_seed.csv --output-csv data/candidates/phase1b_candidates_filtered.csv
+```
+
+The filter keeps rows where `expected_texture_heavy` is `yes`, `true`, or `1`,
+and where `status` is not `rejected`. It prints total rows, kept rows, rejected
+rows, and kept-row counts by source and category.
+
+The filtered CSV is only a planning artifact for Phase 1C. It is not a dataset
+manifest and should not trigger downloads or conversion work by itself.

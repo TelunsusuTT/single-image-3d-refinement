@@ -1,0 +1,11 @@
+candidate_id,source,source_id,name,category,asset_uri,metadata_uri,license,expected_texture_heavy,notes,status
+p1b_001,ABO,TODO_ABO_PACKAGE_BOX,placeholder packaging box,package_box,,,TODO,yes,Review product-like box with printed faces,candidate
+p1b_002,ABO,TODO_ABO_DRINK_CAN,placeholder drink can,drink_can,,,TODO,yes,Prefer cylindrical label artwork,candidate
+p1b_003,ABO,TODO_ABO_BOOK_COVER,placeholder book cover,book_cover,,,TODO,yes,Flat cover graphics could be useful,needs_review
+p1b_004,Objaverse,TODO_OBJAVERSE_LOGO_MUG,placeholder logo mug,logo_mug,,,TODO,yes,Check UVs and texture files before conversion,needs_review
+p1b_005,Objaverse,TODO_OBJAVERSE_POSTER_SIGN,placeholder poster sign,poster_sign,,,TODO,yes,Useful if the sign has readable artwork,candidate
+p1b_006,Objaverse,TODO_OBJAVERSE_CONTAINER,placeholder labeled container,labeled_container,,,TODO,yes,Review texture resolution and license,candidate
+p1b_007,synthetic,TODO_SYNTH_CARTON,placeholder synthetic carton,package_box,,,TODO,yes,Fallback if source assets are not usable,candidate
+p1b_008,synthetic,TODO_SYNTH_STICKER_OBJECT,placeholder sticker object,sticker_object,,,TODO,yes,Fallback for decal-heavy supervision,needs_review
+p1b_009,Objaverse,TODO_OBJAVERSE_SINGLE_COLOR,placeholder single color object,labeled_container,,,TODO,no,Rejected because texture detail is unlikely,rejected
+p1b_010,ABO,TODO_ABO_LARGE_SCENE,placeholder large scene,poster_sign,,,TODO,no,Rejected because it is likely too scene-like,rejected
