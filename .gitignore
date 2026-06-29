@@ -1,0 +1,46 @@
+env/local.env
+caches/
+tmp/
+logs/
+outputs/
+checkpoints/
+data/raw_assets/
+data/hy3dpaint_train_examples/
+*.ckpt
+*.safetensors
+*.pt
+*.pth
+*.out
+*.err
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local secrets
+env/local.env
+
+# Caches and temp
+caches/
+tmp/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Runtime logs and outputs
+logs/
+outputs/
+checkpoints/
+
+# Large data
+data/raw_assets/
+data/hy3dpaint_train_examples/*/
+!data/hy3dpaint_train_examples/official_overfit/
+!data/hy3dpaint_train_examples/official_overfit/examples.json
+
+# Large model files
+*.ckpt
+*.safetensors
+*.pt
+*.pth
