@@ -132,3 +132,49 @@ python scripts/check_local_glb_assets.py --manifest-csv data/candidates/phase1c_
 This check only verifies path existence, `.glb` or `.gltf` suffix, and file size
 bounds. It does not import Blender, inspect UVs, inspect materials, convert data,
 or train a model.
+
+## Phase 1D Blender Asset Inspection
+
+Phase 1D checks whether the selected GLB imports into Blender and has mesh, UV,
+material, and texture signals. Do not run Hunyuan or training yet.
+
+Find Blender:
+
+```bash
+which blender
+```
+
+If `blender` is not on `PATH`, check the local tools path:
+
+```bash
+ls /vol/bitbucket/ct1022/tools/bin/blender
+```
+
+Run the inspection script manually with Blender:
+
+```bash
+blender --background --python scripts/blender_inspect_glb.py -- --input-glb data/raw_assets/phase1c/B07H469871.glb --out-dir outputs/boards/phase1d_B07H469871
+```
+
+If using the local tools path:
+
+```bash
+/vol/bitbucket/ct1022/tools/bin/blender --background --python scripts/blender_inspect_glb.py -- --input-glb data/raw_assets/phase1c/B07H469871.glb --out-dir outputs/boards/phase1d_B07H469871
+```
+
+The Blender script writes:
+
+```text
+outputs/boards/phase1d_B07H469871/asset_inspection.json
+outputs/boards/phase1d_B07H469871/asset_inspection_summary.md
+```
+
+Check the JSON report without Blender:
+
+```bash
+python scripts/check_asset_inspection_report.py --report-json outputs/boards/phase1d_B07H469871/asset_inspection.json
+```
+
+A pass means Blender imported the asset, found at least one mesh, found faces,
+found at least one UV layer, and found at least one material. Missing texture
+images are a warning, not an automatic failure.
