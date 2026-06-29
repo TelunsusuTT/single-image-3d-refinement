@@ -178,3 +178,79 @@ python scripts/check_asset_inspection_report.py --report-json outputs/boards/pha
 A pass means Blender imported the asset, found at least one mesh, found faces,
 found at least one UV layer, and found at least one material. Missing texture
 images are a warning, not an automatic failure.
+
+## Phase 1E Render Training Example
+
+Phase 1E renders the one selected GLB into a minimal Hunyuan3D-Paint-style
+training example. This is still a structure/rendering smoke test. Do not run
+Hunyuan training yet.
+
+Run the Blender renderer manually:
+
+```bash
+blender --background --python scripts/blender_render_hy3dpaint_example.py -- --input-glb data/raw_assets/phase1c/B07H469871.glb --sample-name B07H469871 --out-root data/hy3dpaint_train_examples/phase1e --num-view 6 --resolution 512 --qa-root outputs/qa/framing
+```
+
+If using the local tools path:
+
+```bash
+/vol/bitbucket/ct1022/tools/bin/blender --background --python scripts/blender_render_hy3dpaint_example.py -- --input-glb data/raw_assets/phase1c/B07H469871.glb --sample-name B07H469871 --out-root data/hy3dpaint_train_examples/phase1e --num-view 6 --resolution 512 --qa-root outputs/qa/framing
+```
+
+Create an `examples.json` that points to the rendered sample:
+
+```bash
+python scripts/make_hy3dpaint_examples_json.py --sample-dir data/hy3dpaint_train_examples/phase1e/B07H469871 --out-json data/hy3dpaint_train_examples/phase1e/examples.json
+```
+
+Check the exact Phase 1E expected filenames:
+
+```bash
+python scripts/check_phase1e_outputs.py --sample-dir data/hy3dpaint_train_examples/phase1e/B07H469871 --num-view 6
+```
+
+Then run the existing Phase 1A checker in strict mode:
+
+```bash
+python scripts/check_hy3dpaint_example.py --examples-json data/hy3dpaint_train_examples/phase1e/examples.json --num-view 6 --strict
+```
+
+Phase 1E only confirms that the rendered sample has the expected directories,
+filenames, and basic manifest shape. It does not prove training quality.
+
+## Phase 1E.1 Automatic Render Framing QA
+
+Phase 1E.1 improves the Blender renderer so assets are centered, normalized, and
+framed automatically. Manual per-asset camera adjustment is not acceptable for
+the later conversion pipeline.
+
+The renderer computes a mesh bounding box, moves the asset center to the origin,
+scales the largest extent to a standard size, and uses an orthographic camera
+with margin. Each render writes:
+
+```text
+outputs/qa/framing/B07H469871/camera_framing_report.json
+outputs/qa/framing/B07H469871/000_mask.png
+...
+outputs/qa/framing/B07H469871/005_mask.png
+```
+
+After rerendering with the Phase 1E command above, run the framing checker:
+
+```bash
+python scripts/check_render_framing.py --sample-dir data/hy3dpaint_train_examples/phase1e/B07H469871 --qa-dir outputs/qa/framing/B07H469871 --num-view 6 --border-margin-px 8 --out-json outputs/qa/framing/B07H469871/framing_report.json
+```
+
+The checker prefers `*_mask.png` files from the sidecar QA directory. RGB
+background thresholding remains as a fallback for old outputs, but it can false
+fail when the full render is colored or textured. QA masks may have dark gray
+backgrounds, such as luminance around 58, while visible object pixels are white.
+The default `--mask-threshold` is 128 and remains configurable for unusual masks.
+The checker fails only for clear border-cropping. It warns if the object appears
+too small, too large, or too far from image center.
+
+Do not create `sample_dir/qa`, and do not place masks under `render_tex/` or
+`render_cond/`. QA masks and reports belong under `outputs/qa/framing/...` and do
+not affect Hunyuan training. Hunyuan training sample directories should remain
+official-only: `render_tex/` and `render_cond/`. Do not run Hunyuan training
+until the filename checks and mask-based framing QA both pass.
