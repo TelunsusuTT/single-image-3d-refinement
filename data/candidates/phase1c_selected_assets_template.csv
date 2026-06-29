@@ -1,0 +1,2 @@
+selected_id,source,source_id,abo_path,s3_uri,local_path,name,category,license,selection_reason,status,notes
+phase1c_todo,ABO,TODO_ABO_ID,TODO_PATH.glb,TODO_S3_URI,TODO_LOCAL_PATH,TODO_NAME,package_box,TODO_LICENSE,TODO_REASON,needs_real_selection,Replace this row with a real selected asset before download

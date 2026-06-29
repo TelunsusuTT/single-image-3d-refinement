@@ -1,0 +1,2 @@
+selected_id,source,source_id,abo_path,s3_uri,local_path,name,category,license,selection_reason,status,notes
+phase1c_001,ABO,B07H469871,1/B07H469871.glb,,,ABO technical smoke asset,product_like,ABO_LICENSE_REVIEW,low face count with 4096 texture metadata,selected,First real ABO GLB smoke candidate

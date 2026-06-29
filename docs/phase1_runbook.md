@@ -91,3 +91,44 @@ rows, and kept-row counts by source and category.
 
 The filtered CSV is only a planning artifact for Phase 1C. It is not a dataset
 manifest and should not trigger downloads or conversion work by itself.
+
+## Phase 1C One-Asset Acquisition
+
+Phase 1C prepares one real asset first, preferably from ABO, then up to three
+assets after the one-asset path is understood. Do not download full archives
+such as `abo-3dmodels.tar`.
+
+Create a selected-assets CSV from the template:
+
+```bash
+cp data/candidates/phase1c_selected_assets_template.csv data/candidates/phase1c_selected_assets.csv
+```
+
+Edit `data/candidates/phase1c_selected_assets.csv` and replace the TODO row with
+one real selected asset. For ABO, fill `source`, `source_id`, `abo_path`, `name`,
+`category`, `license`, `selection_reason`, `status`, and any useful notes.
+
+Build a download manifest without downloading anything:
+
+```bash
+python scripts/make_abo_download_manifest.py --input-csv data/candidates/phase1c_selected_assets.csv --output-csv data/candidates/phase1c_download_manifest.csv --asset-root data/raw_assets/phase1c
+```
+
+Manually download exactly one selected GLB from the generated manifest:
+
+```bash
+aws s3 cp --no-sign-request s3://amazon-berkeley-objects/3dmodels/original/REPLACE_WITH_ABO_PATH data/raw_assets/phase1c/REPLACE_WITH_SOURCE_ID.glb
+```
+
+Do not run archive downloads, recursive syncs, or broad dataset fetches in Phase
+1C.
+
+After the one GLB is present locally, check only basic local file properties:
+
+```bash
+python scripts/check_local_glb_assets.py --manifest-csv data/candidates/phase1c_download_manifest.csv --min-size-mb 0.1 --max-size-mb 500
+```
+
+This check only verifies path existence, `.glb` or `.gltf` suffix, and file size
+bounds. It does not import Blender, inspect UVs, inspect materials, convert data,
+or train a model.
