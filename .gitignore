@@ -47,3 +47,4 @@ data/hy3dpaint_train_examples/*/
 
 # Local backup files
 *.bak_before_*
+data/metadata/
