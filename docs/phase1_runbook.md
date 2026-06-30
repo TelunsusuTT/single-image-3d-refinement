@@ -383,3 +383,55 @@ python scripts/summarize_phase2b_inspections.py --inspection-root outputs/boards
 Assets should pass Blender import, mesh, material, texture image, UV, and
 reasonable polygon-count checks before Phase 2C. Reject or hold weak assets for
 review rather than rendering them into Hunyuan3D-Paint training examples.
+
+## Phase 2C Batch Render Pilot Dataset
+
+Phase 2C renders only Phase 2B-passed assets into the `pilot_v1`
+Hunyuan3D-Paint-style training dataset. Do not run training in this phase.
+
+Create the render manifest:
+
+```bash
+python scripts/make_phase2c_render_manifest.py --download-manifest data/candidates/phase2b_abo_download_manifest.csv --inspection-summary outputs/boards/phase2b_abo_inspection_summary.csv --out-csv data/candidates/phase2c_pilot_v1_render_manifest.csv --dataset-root data/hy3dpaint_train_examples/pilot_v1 --qa-root outputs/qa/framing/pilot_v1
+```
+
+Generate the Blender render commands:
+
+```bash
+python scripts/make_phase2c_render_commands.py --render-manifest data/candidates/phase2c_pilot_v1_render_manifest.csv --out-sh outputs/boards/run_phase2c_pilot_v1_renders.sh --blender-bin /vol/bitbucket/ct1022/tools/bin/blender --num-view 6 --resolution 512
+```
+
+Run the generated shell script manually when ready:
+
+```bash
+bash outputs/boards/run_phase2c_pilot_v1_renders.sh
+```
+
+Create dataset manifests:
+
+```bash
+python scripts/make_phase2c_examples_json.py --render-manifest data/candidates/phase2c_pilot_v1_render_manifest.csv --out-json data/hy3dpaint_train_examples/pilot_v1/examples.json
+python scripts/make_phase2c_examples_json.py --render-manifest data/candidates/phase2c_pilot_v1_render_manifest.csv --out-json data/hy3dpaint_train_examples/pilot_v1/examples_train_abs.json --absolute
+```
+
+Run local rendered-dataset structure checks:
+
+```bash
+python scripts/check_phase2c_rendered_dataset.py --render-manifest data/candidates/phase2c_pilot_v1_render_manifest.csv --num-view 6 --framing-qa-root outputs/qa/framing/pilot_v1 --out-csv outputs/boards/phase2c_pilot_v1_render_summary.csv --out-md outputs/boards/phase2c_pilot_v1_render_summary.md
+```
+
+Run framing QA per asset after rendering:
+
+```bash
+python scripts/check_render_framing.py --sample-dir data/hy3dpaint_train_examples/pilot_v1/REPLACE_WITH_SOURCE_ID --qa-dir outputs/qa/framing/pilot_v1/REPLACE_WITH_SOURCE_ID --num-view 6 --border-margin-px 8 --out-json outputs/qa/framing/pilot_v1/REPLACE_WITH_SOURCE_ID/framing_report.json
+```
+
+Run the official-style strict checker on the pilot manifest:
+
+```bash
+python scripts/check_hy3dpaint_example.py --examples-json data/hy3dpaint_train_examples/pilot_v1/examples.json --num-view 6 --strict
+```
+
+A pass means the pilot dataset has the expected Hunyuan-style directories,
+filenames, transforms, and sidecar framing QA. A failure means the asset should
+be rerendered, reframed, or removed from the pilot manifest before Phase 2D.
