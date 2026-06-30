@@ -11,6 +11,12 @@ from pathlib import Path
 from typing import Any
 
 
+EXPECTED_CHECKPOINT_DIRPATH = (
+    "/vol/bitbucket/ct1022/hy3dpaint_finetune/"
+    "checkpoints/pilot_v1_overfit_500"
+)
+
+
 def load_examples(examples_json: Path, errors: list[str]) -> list[Path]:
     if not examples_json.is_file():
         errors.append(f"examples JSON missing: {examples_json}")
@@ -102,14 +108,32 @@ def check_readiness(
 
     config_contains_examples_json = False
     config_has_max_steps_500 = False
-    config_has_save_last_true = False
+    config_has_every_n_train_steps_500 = False
+    config_has_save_top_k_minus_one = False
+    config_has_save_weights_only_true = False
+    config_has_checkpoint_dirpath = False
     if not resolved_config.is_file():
         errors.append(f"config missing: {resolved_config}")
     else:
         config_text = resolved_config.read_text(encoding="utf-8")
         config_contains_examples_json = str(resolved_examples_json) in config_text
         config_has_max_steps_500 = contains_scalar(config_text, "max_steps", "500")
-        config_has_save_last_true = contains_scalar(config_text, "save_last", "true")
+        config_has_every_n_train_steps_500 = contains_scalar(
+            config_text,
+            "every_n_train_steps",
+            "500",
+        )
+        config_has_save_top_k_minus_one = contains_scalar(config_text, "save_top_k", "-1")
+        config_has_save_weights_only_true = contains_scalar(
+            config_text,
+            "save_weights_only",
+            "true",
+        )
+        config_has_checkpoint_dirpath = contains_scalar(
+            config_text,
+            "dirpath",
+            EXPECTED_CHECKPOINT_DIRPATH,
+        )
         if not config_contains_examples_json:
             errors.append(
                 "config does not contain examples JSON path: "
@@ -117,8 +141,17 @@ def check_readiness(
             )
         if not config_has_max_steps_500:
             errors.append("config does not contain max_steps: 500")
-        if not config_has_save_last_true:
-            errors.append("config does not appear to enable save_last: true")
+        if not config_has_every_n_train_steps_500:
+            errors.append("config does not contain every_n_train_steps: 500")
+        if not config_has_save_top_k_minus_one:
+            errors.append("config does not contain save_top_k: -1")
+        if not config_has_save_weights_only_true:
+            errors.append("config does not contain save_weights_only: true")
+        if not config_has_checkpoint_dirpath:
+            errors.append(
+                "config checkpoint dirpath does not point to "
+                "checkpoints/pilot_v1_overfit_500"
+            )
 
     checkpoint_root_ok = check_checkpoint_root(resolved_checkpoint_root, errors)
 
@@ -132,7 +165,10 @@ def check_readiness(
         "config_exists": resolved_config.is_file(),
         "config_contains_examples_json": config_contains_examples_json,
         "config_has_max_steps_500": config_has_max_steps_500,
-        "config_has_save_last_true": config_has_save_last_true,
+        "config_has_every_n_train_steps_500": config_has_every_n_train_steps_500,
+        "config_has_save_top_k_minus_one": config_has_save_top_k_minus_one,
+        "config_has_save_weights_only_true": config_has_save_weights_only_true,
+        "config_has_checkpoint_dirpath": config_has_checkpoint_dirpath,
         "checkpoint_root_ok": checkpoint_root_ok,
         "ok": not errors,
         "errors": errors,
@@ -149,7 +185,13 @@ def print_summary(report: dict[str, Any]) -> None:
     print(f"  config_exists: {report['config_exists']}")
     print(f"  config_contains_examples_json: {report['config_contains_examples_json']}")
     print(f"  config_has_max_steps_500: {report['config_has_max_steps_500']}")
-    print(f"  config_has_save_last_true: {report['config_has_save_last_true']}")
+    print(
+        "  config_has_every_n_train_steps_500: "
+        f"{report['config_has_every_n_train_steps_500']}"
+    )
+    print(f"  config_has_save_top_k_minus_one: {report['config_has_save_top_k_minus_one']}")
+    print(f"  config_has_save_weights_only_true: {report['config_has_save_weights_only_true']}")
+    print(f"  config_has_checkpoint_dirpath: {report['config_has_checkpoint_dirpath']}")
     print(f"  checkpoint_root_ok: {report['checkpoint_root_ok']}")
     for index, sample in enumerate(report["samples"], start=1):
         print(f"  [{index}] {sample['sample_dir']}")

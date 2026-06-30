@@ -24,6 +24,15 @@ Expected success signs:
 
 Storage caution:
 
-- Save only one checkpoint with `save_top_k: 0` and `save_last: true`.
+- Save one step-500 checkpoint in `checkpoints/pilot_v1_overfit_500`.
 - Prefer `save_weights_only: true` when the official training stack supports it.
 - Check disk usage after the job before moving on to larger experiments.
+
+Checkpoint fix note:
+
+The first 500-step Phase 2F run reached `max_steps=500` but produced no
+checkpoint. The checkpoint interval was `every_n_train_steps: 1000000`, and
+`save_top_k: 0` also disabled ordinary checkpoint saves. The patched setup saves
+at step 500 with `every_n_train_steps: 500`, `save_top_k: -1`, and
+`save_last: false`, so the post-run check expects exactly one new `.ckpt` under
+`checkpoints/pilot_v1_overfit_500`.

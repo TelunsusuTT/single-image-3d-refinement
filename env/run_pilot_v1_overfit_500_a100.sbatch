@@ -5,7 +5,7 @@
 #SBATCH --chdir=/vol/bitbucket/ct1022/hy3dpaint_finetune
 #SBATCH --cpus-per-task=6
 #SBATCH --mem=64G
-#SBATCH --time=03:00:00
+#SBATCH --time=05:00:00
 #SBATCH --output=/vol/bitbucket/ct1022/hy3dpaint_finetune/logs/slurm/%x-%j.out
 #SBATCH --error=/vol/bitbucket/ct1022/hy3dpaint_finetune/logs/slurm/%x-%j.err
 
@@ -32,8 +32,9 @@ export PYTHONDONTWRITEBYTECODE=1
 CONFIG_PATH="$PROJ/configs/ft_pilot_v1_overfit_500.yaml"
 EXAMPLES_JSON="$PROJ/data/hy3dpaint_train_examples/pilot_v1/examples_train_abs.json"
 LOGDIR="$PROJ/logs/train"
-CHECKPOINT_ROOT="$PROJ/logs/train"
+CHECKPOINT_ROOT="$PROJ/checkpoints/pilot_v1_overfit_500"
 JOB_MARKER="$JOB_TMPDIR/job_start.marker"
+mkdir -p "$CHECKPOINT_ROOT"
 touch "$JOB_MARKER"
 
 echo "===== PATHS ====="
@@ -156,18 +157,12 @@ fi
 
 echo "===== CHECKPOINT SEARCH ====="
 checkpoint_count=0
-for root in "$PROJ/logs/train" "$PROJ/checkpoints"; do
-  if [[ -d "$root" ]]; then
-    while IFS= read -r -d '' ckpt; do
-      size="$(du -h "$ckpt" | awk '{print $1}')"
-      bytes="$(stat -c '%s' "$ckpt")"
-      echo "CHECKPOINT: $ckpt size=$size bytes=$bytes"
-      checkpoint_count=$((checkpoint_count + 1))
-    done < <(find "$root" -type f -name "*.ckpt" -newer "$JOB_MARKER" -print0)
-  else
-    echo "checkpoint search root missing: $root"
-  fi
-done
+while IFS= read -r -d '' ckpt; do
+  size="$(du -h "$ckpt" | awk '{print $1}')"
+  bytes="$(stat -c '%s' "$ckpt")"
+  echo "CHECKPOINT: $ckpt size=$size bytes=$bytes"
+  checkpoint_count=$((checkpoint_count + 1))
+done < <(find "$CHECKPOINT_ROOT" -type f -name "*.ckpt" -newer "$JOB_MARKER" -print0)
 
 if [[ "$checkpoint_count" -ne 1 ]]; then
   echo "EXPECTED_EXACTLY_ONE_NEW_CHECKPOINT, found $checkpoint_count" >&2
