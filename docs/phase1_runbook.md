@@ -435,3 +435,42 @@ python scripts/check_hy3dpaint_example.py --examples-json data/hy3dpaint_train_e
 A pass means the pilot dataset has the expected Hunyuan-style directories,
 filenames, transforms, and sidecar framing QA. A failure means the asset should
 be rerendered, reframed, or removed from the pilot manifest before Phase 2D.
+
+## Phase 2E Multi-Asset Training Smoke
+
+Phase 2E checks whether official Hunyuan3D-Paint `train.py` can read the
+7-sample `pilot_v1` dataset and complete a 50-step A100 smoke run. This is not
+formal fine-tuning.
+
+Run the readiness check:
+
+```bash
+python scripts/check_phase2e_readiness.py --examples-json data/hy3dpaint_train_examples/pilot_v1/examples_train_abs.json --config configs/ft_pilot_v1_smoke.yaml --expected-count 7
+```
+
+Static-check the sbatch syntax:
+
+```bash
+bash -n env/run_pilot_v1_smoke_a100.sbatch
+```
+
+Submit the job manually when ready:
+
+```bash
+sbatch env/run_pilot_v1_smoke_a100.sbatch
+```
+
+Inspect logs:
+
+```bash
+ls -lt logs/slurm
+tail -n 160 logs/slurm/hy3dpaint-pilot-v1-smoke-<jobid>.out
+tail -n 160 logs/slurm/hy3dpaint-pilot-v1-smoke-<jobid>.err
+```
+
+Expected success signs are `CONFIG_TARGET_OK`, `DATASET_PREFLIGHT_OK`, the
+official strict checker reporting `Checked 7 sample(s): 7 OK, 0 failed`,
+`CUBLAS_MATMUL_OK`, `dataset length = 7`, `max_steps reached`, and
+`JOB END: SUCCESS`. Failure means the pilot dataset, config path wiring, CUDA
+runtime, or official dataloader assumptions need debugging before any real
+fine-tuning claims.
