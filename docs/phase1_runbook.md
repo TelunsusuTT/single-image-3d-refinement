@@ -344,3 +344,42 @@ dominate the top of the gallery, adjust semantic scoring or use
 `--require-positive-keyword` rather than manually deleting metadata rows. Phase
 2B will download selected GLBs, inspect them with Blender, render training
 examples, and run the official Hunyuan-style checkers.
+
+## Phase 2B Selected Asset Download And Inspection
+
+Phase 2B downloads only the Phase 2A selected ABO GLBs and checks whether they
+are technically usable before rendering training examples.
+
+Create a selected-asset download manifest:
+
+```bash
+python scripts/make_phase2b_download_manifest.py --selected-csv data/candidates/phase2a_abo_selected_assets.csv --out-csv data/candidates/phase2b_abo_download_manifest.csv --raw-dir data/raw_assets/phase2b_abo_selected
+```
+
+Download the selected GLBs manually:
+
+```bash
+python scripts/download_phase2b_assets.py --manifest-csv data/candidates/phase2b_abo_download_manifest.csv --skip-existing
+```
+
+Check that the expected local GLB files exist and are non-empty:
+
+```bash
+python scripts/check_phase2b_local_assets.py --manifest-csv data/candidates/phase2b_abo_download_manifest.csv
+```
+
+Run Blender inspection manually for each downloaded asset:
+
+```bash
+blender --background --python scripts/blender_inspect_glb.py -- --input-glb data/raw_assets/phase2b_abo_selected/REPLACE_WITH_SOURCE_ID.glb --out-dir outputs/boards/phase2b_inspections/REPLACE_WITH_SOURCE_ID
+```
+
+Summarize the inspection reports:
+
+```bash
+python scripts/summarize_phase2b_inspections.py --inspection-root outputs/boards/phase2b_inspections --manifest-csv data/candidates/phase2b_abo_download_manifest.csv --out-csv outputs/boards/phase2b_inspection_summary.csv --out-md outputs/boards/phase2b_inspection_summary.md
+```
+
+Assets should pass Blender import, mesh, material, texture image, UV, and
+reasonable polygon-count checks before Phase 2C. Reject or hold weak assets for
+review rather than rendering them into Hunyuan3D-Paint training examples.
