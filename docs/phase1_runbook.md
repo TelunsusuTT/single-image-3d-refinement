@@ -254,3 +254,49 @@ Do not create `sample_dir/qa`, and do not place masks under `render_tex/` or
 not affect Hunyuan training. Hunyuan training sample directories should remain
 official-only: `render_tex/` and `render_cond/`. Do not run Hunyuan training
 until the filename checks and mask-based framing QA both pass.
+
+## Phase 1F Custom ABO One-Asset Training Smoke
+
+Phase 1F checks whether the official Hunyuan3D-Paint `train.py` can read the
+custom ABO one-asset training example and start the training loop. This is only
+a dataloader/training-loop smoke test, not formal fine-tuning.
+
+Create an absolute-path examples JSON so the official HYPAINT working directory
+cannot change dataset path resolution:
+
+```bash
+python scripts/make_phase1f_train_json.py --sample-dir data/hy3dpaint_train_examples/abo_one_asset/B07H469871 --out-json data/hy3dpaint_train_examples/abo_one_asset/examples_train_abs.json
+```
+
+Run the local readiness check:
+
+```bash
+python scripts/check_phase1f_readiness.py --examples-json data/hy3dpaint_train_examples/abo_one_asset/examples_train_abs.json --config configs/ft_abo_one_asset_smoke.yaml
+```
+
+Run the official-style strict packaging check:
+
+```bash
+python scripts/check_hy3dpaint_example.py --examples-json data/hy3dpaint_train_examples/abo_one_asset/examples_train_abs.json --num-view 6 --strict
+```
+
+Submit the A100 smoke job manually:
+
+```bash
+sbatch env/run_abo_one_asset_smoke_a100.sbatch
+```
+
+Inspect Slurm logs:
+
+```bash
+ls -lt logs/slurm
+tail -n 120 logs/slurm/hy3dpaint-abo-smoke-<jobid>.out
+tail -n 120 logs/slurm/hy3dpaint-abo-smoke-<jobid>.err
+```
+
+Expected success signs are `CONFIG_TARGET_OK`, `DATASET_PREFLIGHT_OK`,
+`CUBLAS_MATMUL_OK`, train startup, max steps reached, and `JOB END: SUCCESS`.
+Failure usually means path ambiguity, `transforms.json` mismatch, image channel
+mismatch, normal or position encoding mismatch, or an official dataloader
+assumption that the custom sample does not satisfy yet. A successful Phase 1F
+run does not imply useful checkpoint quality or visual quality.
