@@ -300,3 +300,47 @@ Failure usually means path ambiguity, `transforms.json` mismatch, image channel
 mismatch, normal or position encoding mismatch, or an official dataloader
 assumption that the custom sample does not satisfy yet. A successful Phase 1F
 run does not imply useful checkpoint quality or visual quality.
+
+## Phase 2A Metadata-Driven Asset Selection
+
+Phase 2A builds an ABO candidate index and thumbnail gallery for manual review.
+Do not download GLBs, full archives, or large datasets in this phase.
+
+Download only small ABO metadata files. ABO listing metadata currently uses
+`listings_0.json.gz` through `listings_9.json.gz` by default:
+
+```bash
+python scripts/download_abo_metadata.py --out-dir data/metadata/abo_phase2a --skip-existing
+```
+
+Build a scored candidate index:
+
+```bash
+python scripts/build_abo_candidate_index.py --metadata-dir data/metadata/abo_phase2a --out-csv data/candidates/phase2a_abo_candidates.csv --min-textures 3 --min-images 3 --min-resolution 2048 --max-faces 150000
+```
+
+Download only top-k catalog thumbnails for review. The candidate CSV should
+contain URLs using `images/small/<image_path>`:
+
+```bash
+python scripts/download_abo_candidate_thumbnails.py --candidates-csv data/candidates/phase2a_abo_candidates.csv --thumb-dir data/candidates/phase2a_thumbnails --top-k 200 --skip-existing
+```
+
+Build a local gallery that can be opened directly in a browser:
+
+```bash
+python scripts/make_candidate_gallery.py --candidates-csv data/candidates/phase2a_abo_candidates.csv --thumb-dir data/candidates/phase2a_thumbnails --out-html outputs/boards/phase2a_abo_gallery.html --top-k 200
+```
+
+Mark a manually reviewed candidate:
+
+```bash
+python scripts/mark_phase2a_candidates.py --candidates-csv data/candidates/phase2a_abo_candidates.csv --selected-csv data/candidates/phase2a_selected_assets.csv --candidate-id REPLACE_WITH_ID --status selected --reason "texture-heavy product packaging"
+```
+
+The selected CSV is only a Phase 2B planning manifest. Metadata filtering is a
+first pass; human gallery review remains required. If furniture-heavy results
+dominate the top of the gallery, adjust semantic scoring or use
+`--require-positive-keyword` rather than manually deleting metadata rows. Phase
+2B will download selected GLBs, inspect them with Blender, render training
+examples, and run the official Hunyuan-style checkers.
