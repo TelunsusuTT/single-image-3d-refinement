@@ -474,3 +474,49 @@ official strict checker reporting `Checked 7 sample(s): 7 OK, 0 failed`,
 `JOB END: SUCCESS`. Failure means the pilot dataset, config path wiring, CUDA
 runtime, or official dataloader assumptions need debugging before any real
 fine-tuning claims.
+
+## Phase 2F Tiny Pilot Overfit
+
+Phase 2F runs the first real 500-step tiny overfit on the 7-sample `pilot_v1`
+dataset. It tests longer training and one-checkpoint saving, but it is not a
+final quality or generalization experiment.
+
+Run the readiness check:
+
+```bash
+python scripts/check_phase2f_readiness.py --examples-json data/hy3dpaint_train_examples/pilot_v1/examples_train_abs.json --config configs/ft_pilot_v1_overfit_500.yaml --expected-count 7 --checkpoint-root logs/train
+```
+
+Static-check the sbatch syntax and inspect the checkpoint settings:
+
+```bash
+bash -n env/run_pilot_v1_overfit_500_a100.sbatch
+grep -n "max_steps\|save_top_k\|save_last\|save_weights_only" configs/ft_pilot_v1_overfit_500.yaml
+```
+
+Submit the job manually when ready:
+
+```bash
+sbatch env/run_pilot_v1_overfit_500_a100.sbatch
+```
+
+Inspect logs:
+
+```bash
+ls -lt logs/slurm
+tail -n 200 logs/slurm/hy3dpaint-pilot-v1-overfit500-<jobid>.out
+tail -n 200 logs/slurm/hy3dpaint-pilot-v1-overfit500-<jobid>.err
+```
+
+Check checkpoint size after the job:
+
+```bash
+find logs/train checkpoints -type f -name "*.ckpt" -printf "%p %s bytes\n" 2>/dev/null
+du -sh logs/train checkpoints 2>/dev/null
+```
+
+Expected success signs are `PHASE2F_PREFLIGHT_OK`, the official strict checker
+passing on all 7 samples, `CUBLAS_MATMUL_OK`, `max_steps=500 reached`,
+one printed checkpoint path and size, and `JOB END: SUCCESS`. Failure usually
+means config path drift, checkpoint callback behavior, CUDA memory pressure, or
+a training stability issue such as NaN.
