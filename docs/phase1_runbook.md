@@ -548,3 +548,36 @@ python scripts/check_phase2g_readiness.py --case-dir outputs/phase2g/cases/B075Y
 Stop after readiness and review the interface report before creating an A100
 inference sbatch. Phase 2G should compare base and fine-tuned outputs with the
 same mesh, same reference image, same settings, and the same later board layout.
+
+## Phase 2G.1 Project-Local Inference Wrapper
+
+Phase 2G.1 prepares a project-local wrapper for later A100 inference. Do not run
+Hunyuan, load the checkpoint, submit Slurm, or modify the official Hunyuan repo.
+
+Inspect checkpoint filesystem metadata without opening the checkpoint:
+
+```bash
+python scripts/inspect_phase2g1_checkpoint_metadata.py --checkpoint checkpoints/pilot_v1_overfit_500/pilot_v1_overfit_500-stepstep=500.ckpt --out-json outputs/boards/phase2g1_checkpoint_metadata.json --out-md outputs/boards/phase2g1_checkpoint_metadata.md
+```
+
+Dry-run the wrapper in base mode:
+
+```bash
+python scripts/run_phase2g_paint_infer.py --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --output-dir outputs/phase2g/base/B075YLTF7Q --mode base --max-num-view 6 --resolution 512 --dry-run
+```
+
+Dry-run the wrapper in fine-tuned mode:
+
+```bash
+python scripts/run_phase2g_paint_infer.py --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --output-dir outputs/phase2g/finetuned/B075YLTF7Q --mode finetuned --checkpoint checkpoints/pilot_v1_overfit_500/pilot_v1_overfit_500-stepstep=500.ckpt --max-num-view 6 --resolution 512 --dry-run
+```
+
+Run wrapper readiness:
+
+```bash
+python scripts/check_phase2g1_wrapper_readiness.py --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --checkpoint checkpoints/pilot_v1_overfit_500/pilot_v1_overfit_500-stepstep=500.ckpt --wrapper scripts/run_phase2g_paint_infer.py --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint
+```
+
+Stop after these checks and review the outputs before creating any A100
+inference sbatch. Fine-tuned non-dry-run mode must fail loudly until checkpoint
+key mapping is confirmed.
