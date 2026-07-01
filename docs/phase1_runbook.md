@@ -803,3 +803,46 @@ sed -n '1,220p' outputs/phase2g/target_diagnostic/pilot_v1/phase2g7_training_tar
 Use the report to decide whether to fix MR/albedo data, reduce training
 aggressiveness, or run a shorter/lower-learning-rate checkpoint. Do not retrain
 or change checkpoint loading until this diagnostic has been reviewed.
+
+## Phase 2H.1 Conservative Recovery
+
+Phase 2H.1 prepares a fresh 50-step recovery run on `pilot_v1` with
+`base_learning_rate: 1e-6`. It must not resume from or reference the
+`pilot_v1_overfit_500` checkpoint path.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2h1_readiness.py --examples-json data/hy3dpaint_train_examples/pilot_v1/examples_train_abs.json --config configs/ft_pilot_v1_conservative_50_lr1e6.yaml --expected-count 7 --checkpoint-root checkpoints/pilot_v1_conservative_50_lr1e6
+```
+
+Static-check the sbatch and inspect the conservative config before submission:
+
+```bash
+bash -n env/run_phase2h1_conservative_50_a100.sbatch
+grep -n "base_learning_rate\|max_steps\|every_n_train_steps\|save_top_k\|save_last\|save_weights_only\|dirpath" configs/ft_pilot_v1_conservative_50_lr1e6.yaml
+```
+
+Commit or otherwise save the setup after review, then submit manually:
+
+```bash
+sbatch env/run_phase2h1_conservative_50_a100.sbatch
+```
+
+Inspect logs and checkpoint output:
+
+```bash
+ls -lt logs/slurm
+tail -n 200 logs/slurm/hy3dpaint-phase2h1-cons50-<jobid>.out
+tail -n 200 logs/slurm/hy3dpaint-phase2h1-cons50-<jobid>.err
+find checkpoints/pilot_v1_conservative_50_lr1e6 -type f -name "*.ckpt" -printf "%p %s bytes\n"
+du -sh checkpoints/pilot_v1_conservative_50_lr1e6 logs/train 2>/dev/null
+```
+
+Expected success signs are `PHASE2H1_PREFLIGHT_OK`, official strict checker
+success on all 7 samples, `CUBLAS_MATMUL_OK`, `max_steps=50 reached`, exactly
+one printed checkpoint path and size, and `JOB END: SUCCESS`. If the run fails,
+debug training stability, path wiring, checkpoint callback behavior, or disk
+space before trying inference. Do not run inference on the conservative
+checkpoint until this training job has succeeded and the checkpoint has been
+reviewed.
