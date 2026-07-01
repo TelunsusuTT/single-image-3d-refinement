@@ -846,3 +846,40 @@ debug training stability, path wiring, checkpoint callback behavior, or disk
 space before trying inference. Do not run inference on the conservative
 checkpoint until this training job has succeeded and the checkpoint has been
 reviewed.
+
+## Phase 2H.1 Conservative 50-Step Evaluation
+
+Phase 2H.1 evaluation checks whether the successful 50-step low-learning-rate
+checkpoint avoids the texture/PBR collapse seen with the 500-step checkpoint.
+It runs load-only, no-remesh fine-tuned inference, and the Phase 2G.6 diagnostic
+comparison on A100.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2h1_eval_readiness.py --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --base-dir outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_noremesh_smoke --checkpoint checkpoints/pilot_v1_conservative_50_lr1e6/pilot_v1_conservative_50_lr1e6-stepstep=50.ckpt --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --load-output-dir outputs/phase2h/load_only/pilot_v1_conservative_50_lr1e6 --infer-output-dir outputs/phase2h/infer_runs/B075YLTF7Q/pilot_v1_conservative_50_lr1e6_noremesh --compare-output-dir outputs/phase2h/compare/B075YLTF7Q/pilot_v1_conservative_50_lr1e6
+```
+
+Static-check the sbatch before submission:
+
+```bash
+bash -n env/run_phase2h1_eval_conservative50_a100.sbatch
+```
+
+Commit or otherwise save the setup after review, then submit manually:
+
+```bash
+sbatch env/run_phase2h1_eval_conservative50_a100.sbatch
+```
+
+Inspect load-only, inference, and diagnostic outputs:
+
+```bash
+sed -n '1,180p' outputs/phase2h/load_only/pilot_v1_conservative_50_lr1e6/load_only_report.md
+find outputs/phase2h/infer_runs/B075YLTF7Q/pilot_v1_conservative_50_lr1e6_noremesh -type f \( -name "*.obj" -o -name "*.glb" -o -name "*.jpg" -o -name "run_plan.json" \) -printf "%p %s bytes\n"
+sed -n '1,220p' outputs/phase2h/compare/B075YLTF7Q/pilot_v1_conservative_50_lr1e6/base_vs_finetuned_report.md
+```
+
+Compare albedo, metallic, and roughness metrics against the 500-step collapsed
+checkpoint diagnostics before making any retraining decision. This evaluation is
+still diagnostic only and should not be treated as a final quality claim.
