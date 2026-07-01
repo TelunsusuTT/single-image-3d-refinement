@@ -741,3 +741,35 @@ mesh output, and `JOB END: SUCCESS`.
 
 Do not make any quality claim until Phase 2G.6 compares base and fine-tuned
 outputs side by side.
+
+## Phase 2G.6 Failure Diagnostic Comparison
+
+Phase 2G.6 compares the successful base no-remesh inference against the
+fine-tuned no-remesh inference. This is diagnostic only: it should identify
+whether the visible degradation is concentrated in albedo, metallic, roughness,
+or mesh/material binding signals.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2g6_compare_readiness.py --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --base-dir outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_noremesh_smoke --finetuned-dir outputs/phase2g/infer_runs/B075YLTF7Q/finetuned_a100_noremesh_smoke --output-dir outputs/phase2g/compare/B075YLTF7Q
+```
+
+Run the texture comparison:
+
+```bash
+python scripts/make_phase2g6_texture_comparison.py --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --base-dir outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_noremesh_smoke --finetuned-dir outputs/phase2g/infer_runs/B075YLTF7Q/finetuned_a100_noremesh_smoke --output-dir outputs/phase2g/compare/B075YLTF7Q
+```
+
+Inspect the board and report:
+
+```bash
+ls -lh outputs/phase2g/compare/B075YLTF7Q
+sed -n '1,220p' outputs/phase2g/compare/B075YLTF7Q/base_vs_finetuned_report.md
+```
+
+Use the metrics to decide the next step: if albedo differs strongly, inspect
+color/texture learning; if metallic or roughness shifts strongly, inspect PBR
+channel prediction; if maps look sane but GLB appearance is bad, inspect
+material binding and exported mesh references. Do not make a final quality claim
+or retraining decision from this diagnostic alone.
