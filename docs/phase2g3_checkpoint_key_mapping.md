@@ -36,3 +36,15 @@ Non-goals:
 Expected success means the checkpoint key summary is generated, the inference
 UNet key summary is generated, and the overlap report either identifies a
 recommended load strategy or explicitly marks the mapping as `UNKNOWN`.
+
+## Phase 2G.3b Multi-Candidate Compare
+
+The first A100 key inspection succeeded, but the initial compare report returned
+`UNKNOWN` because it compared against a single inference candidate. The logged
+counts suggest a likely nested mapping: checkpoint keys under `unet.unet.*` have
+count `1061`, and `paint_pipeline.models['multiview_model'].pipeline.unet.unet`
+also has `1061` keys.
+
+Phase 2G.3b refines the comparison across every discovered inference candidate
+and every candidate strip transform. It should identify whether stripping
+`unet.unet.` maps the checkpoint subset onto the nested inference UNet.

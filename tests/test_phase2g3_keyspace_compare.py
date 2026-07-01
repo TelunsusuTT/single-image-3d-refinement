@@ -62,11 +62,21 @@ def run_readiness(checkpoint: Path, hypaint: Path, output_dir: Path) -> int:
     )
 
 
+def load_compare_report(root: Path, checkpoint_data: dict, infer_data: dict) -> dict:
+    checkpoint_json = write_json(root / "checkpoint.json", checkpoint_data)
+    infer_json = write_json(root / "infer.json", infer_data)
+    out_json = root / "compare.json"
+    out_md = root / "compare.md"
+
+    assert run_compare(checkpoint_json, infer_json, out_json, out_md) == 0
+    return json.loads(out_json.read_text(encoding="utf-8"))
+
+
 def test_compare_recommends_unet_unet_strip_for_full_overlap() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
-        checkpoint_json = write_json(
-            root / "checkpoint.json",
+        report = load_compare_report(
+            root,
             {
                 "state_dict_all_keys": [
                     "unet.unet.conv.weight",
@@ -74,9 +84,6 @@ def test_compare_recommends_unet_unet_strip_for_full_overlap() -> None:
                     "other.module.weight",
                 ]
             },
-        )
-        infer_json = write_json(
-            root / "infer.json",
             {
                 "candidates": [
                     {
@@ -87,25 +94,76 @@ def test_compare_recommends_unet_unet_strip_for_full_overlap() -> None:
                 ]
             },
         )
-        out_json = root / "compare.json"
-        out_md = root / "compare.md"
+        assert report["recommendation_status"] == "RECOMMENDED"
+        assert report["recommended_transform"] == "strip:unet.unet."
+        assert report["recommended_prefix_to_strip"] == "unet.unet."
 
-        assert run_compare(checkpoint_json, infer_json, out_json, out_md) == 0
-        report = json.loads(out_json.read_text(encoding="utf-8"))
-        assert report["recommendation"]["status"] == "RECOMMENDED"
-        assert report["recommendation"]["mapping"] == "strip:unet.unet."
-        assert report["recommendation"]["prefix_to_strip"] == "unet.unet."
+
+def test_compare_recommends_nested_candidate_with_unet_unet_strip() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        report = load_compare_report(
+            root,
+            {
+                "state_dict_all_keys": [
+                    "unet.unet.down.weight",
+                    "unet.unet.up.bias",
+                    "trainer.global_step",
+                ]
+            },
+            {
+                "candidates": [
+                    {
+                        "attribute_path": "paint_pipeline.models['multiview_model'].pipeline.unet",
+                        "class_name": "OuterUNet",
+                        "all_keys": ["outer.a", "outer.b", "outer.c"],
+                    },
+                    {
+                        "attribute_path": "paint_pipeline.models['multiview_model'].pipeline.unet.unet",
+                        "class_name": "NestedUNet",
+                        "all_keys": ["down.weight", "up.bias"],
+                    },
+                ]
+            },
+        )
+        assert report["recommendation_status"] == "RECOMMENDED"
+        assert report["recommended_target_path"] == "paint_pipeline.models['multiview_model'].pipeline.unet.unet"
+        assert report["recommended_target_class"] == "NestedUNet"
+        assert report["recommended_transform"] == "strip:unet.unet."
+
+
+def test_compare_recommends_strip_unet_transform() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        report = load_compare_report(
+            root,
+            {
+                "state_dict_all_keys": [
+                    "unet.conv.weight",
+                    "unet.conv.bias",
+                ]
+            },
+            {
+                "candidates": [
+                    {
+                        "attribute_path": "paint_pipeline.models['multiview_model'].pipeline.unet",
+                        "class_name": "OuterUNet",
+                        "all_keys": ["conv.bias", "conv.weight"],
+                    }
+                ]
+            },
+        )
+        assert report["recommendation_status"] == "RECOMMENDED"
+        assert report["recommended_transform"] == "strip:unet."
+        assert report["recommended_prefix_to_strip"] == "unet."
 
 
 def test_compare_reports_unknown_when_overlap_is_low() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
-        checkpoint_json = write_json(
-            root / "checkpoint.json",
+        report = load_compare_report(
+            root,
             {"state_dict_all_keys": ["unet.unet.alpha.weight", "unet.unet.beta.bias"]},
-        )
-        infer_json = write_json(
-            root / "infer.json",
             {
                 "candidates": [
                     {
@@ -116,13 +174,8 @@ def test_compare_reports_unknown_when_overlap_is_low() -> None:
                 ]
             },
         )
-        out_json = root / "compare.json"
-        out_md = root / "compare.md"
-
-        assert run_compare(checkpoint_json, infer_json, out_json, out_md) == 0
-        report = json.loads(out_json.read_text(encoding="utf-8"))
-        assert report["recommendation"]["status"] == "UNKNOWN"
-        assert report["recommendation"]["mapping"] == "UNKNOWN"
+        assert report["recommendation_status"] == "UNKNOWN"
+        assert report["recommended_transform"] == "UNKNOWN"
 
 
 def test_readiness_fails_if_checkpoint_missing() -> None:
