@@ -622,3 +622,45 @@ Success means the base project-local wrapper can execute official inference and
 produce at least one mesh output. Failure means pathing, cache/model
 availability, CUDA runtime, or official inference assumptions need debugging
 before any fine-tuned checkpoint loading is attempted.
+
+## Phase 2G.3 Checkpoint Key Mapping
+
+Phase 2G.3 inspects the Phase 2F checkpoint key structure and compares it with
+the base inference pipeline UNet keys. It does not run fine-tuned inference and
+does not load checkpoint weights into the inference model.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2g3_key_inspect_readiness.py --checkpoint checkpoints/pilot_v1_overfit_500/pilot_v1_overfit_500-stepstep=500.ckpt --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --output-dir outputs/phase2g/key_inspection/pilot_v1_overfit_500
+```
+
+Static-check the sbatch syntax:
+
+```bash
+bash -n env/run_phase2g3_key_inspect_a100.sbatch
+```
+
+Submit manually only after assistant review:
+
+```bash
+sbatch env/run_phase2g3_key_inspect_a100.sbatch
+```
+
+Inspect the generated reports:
+
+```bash
+ls -lh outputs/phase2g/key_inspection/pilot_v1_overfit_500
+sed -n '1,160p' outputs/phase2g/key_inspection/pilot_v1_overfit_500/keyspace_compare.md
+```
+
+Expected success signs are `PHASE2G3_KEY_INSPECT_PREFLIGHT_OK`,
+`CUBLAS_MATMUL_OK`, `PHASE2G3_CHECKPOINT_KEYS_OK`,
+`PHASE2G3_INFER_UNET_KEYS_OK`, `PHASE2G3_KEYSPACE_COMPARE_OK`, and
+`JOB END: SUCCESS`. The compare report should either recommend a prefix mapping
+such as stripping `unet.unet.` or explicitly mark the load strategy as
+`UNKNOWN`.
+
+Do not run fine-tuned inference yet. Phase 2G.3 only decides whether the
+checkpoint key mapping is understood well enough to design the next wrapper
+patch.
