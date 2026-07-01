@@ -664,3 +664,41 @@ such as stripping `unet.unet.` or explicitly mark the load strategy as
 Do not run fine-tuned inference yet. Phase 2G.3 only decides whether the
 checkpoint key mapping is understood well enough to design the next wrapper
 patch.
+
+## Phase 2G.4 Checkpoint Load-Only Smoke
+
+Phase 2G.4 builds the official base inference pipeline, loads the Phase 2F
+checkpoint into `paint_pipeline.models["multiview_model"].pipeline.unet`, and
+exits before inference. It uses the Phase 2G.3b mapping recommendation:
+strip checkpoint prefix `unet.` and load with `strict=True`.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2g4_load_readiness.py --checkpoint checkpoints/pilot_v1_overfit_500/pilot_v1_overfit_500-stepstep=500.ckpt --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --output-dir outputs/phase2g/load_only/pilot_v1_overfit_500
+```
+
+Static-check the sbatch syntax:
+
+```bash
+bash -n env/run_phase2g4_load_only_a100.sbatch
+```
+
+Submit manually only after assistant review:
+
+```bash
+sbatch env/run_phase2g4_load_only_a100.sbatch
+```
+
+Inspect the load-only report:
+
+```bash
+ls -lh outputs/phase2g/load_only/pilot_v1_overfit_500
+sed -n '1,180p' outputs/phase2g/load_only/pilot_v1_overfit_500/load_only_report.md
+```
+
+Expected success signs are `PHASE2G4_LOAD_PREFLIGHT_OK`,
+`CUBLAS_MATMUL_OK`, exact key and shape compatibility,
+`PHASE2G4_CHECKPOINT_LOAD_ONLY_OK`, and `JOB END: SUCCESS`.
+
+Do not run fine-tuned inference until the load-only smoke succeeds.
