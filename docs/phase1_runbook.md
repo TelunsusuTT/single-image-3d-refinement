@@ -773,3 +773,33 @@ color/texture learning; if metallic or roughness shifts strongly, inspect PBR
 channel prediction; if maps look sane but GLB appearance is bad, inspect
 material binding and exported mesh references. Do not make a final quality claim
 or retraining decision from this diagnostic alone.
+
+## Phase 2G.7 Training Target Diagnostic
+
+Phase 2G.7 inspects the `pilot_v1` training targets before any retraining or
+checkpoint-loading changes. The goal is to determine whether MR maps, albedo
+targets, or target distribution mismatch may explain the degraded fine-tuned
+output.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2g7_target_diagnostic_readiness.py --dataset-root data/hy3dpaint_train_examples/pilot_v1 --manifest-csv data/candidates/phase2c_pilot_v1_render_manifest.csv --base-dir outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_noremesh_smoke --finetuned-dir outputs/phase2g/infer_runs/B075YLTF7Q/finetuned_a100_noremesh_smoke --output-dir outputs/phase2g/target_diagnostic/pilot_v1
+```
+
+Run the target diagnostic:
+
+```bash
+python scripts/analyze_phase2g7_training_targets.py --dataset-root data/hy3dpaint_train_examples/pilot_v1 --manifest-csv data/candidates/phase2c_pilot_v1_render_manifest.csv --base-dir outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_noremesh_smoke --finetuned-dir outputs/phase2g/infer_runs/B075YLTF7Q/finetuned_a100_noremesh_smoke --output-dir outputs/phase2g/target_diagnostic/pilot_v1
+```
+
+Inspect the report:
+
+```bash
+ls -lh outputs/phase2g/target_diagnostic/pilot_v1
+sed -n '1,220p' outputs/phase2g/target_diagnostic/pilot_v1/phase2g7_training_target_report.md
+```
+
+Use the report to decide whether to fix MR/albedo data, reduce training
+aggressiveness, or run a shorter/lower-learning-rate checkpoint. Do not retrain
+or change checkpoint loading until this diagnostic has been reviewed.
