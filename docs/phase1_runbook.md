@@ -702,3 +702,42 @@ Expected success signs are `PHASE2G4_LOAD_PREFLIGHT_OK`,
 `PHASE2G4_CHECKPOINT_LOAD_ONLY_OK`, and `JOB END: SUCCESS`.
 
 Do not run fine-tuned inference until the load-only smoke succeeds.
+
+## Phase 2G.5 Fine-Tuned No-Remesh Inference Smoke
+
+Phase 2G.5 is the first real fine-tuned inference smoke. It loads the Phase 2F
+checkpoint into `paint_pipeline.models["multiview_model"].pipeline.unet` using
+the Phase 2G.3b `strip:unet.` mapping, then runs one no-remesh inference on the
+prepared `B075YLTF7Q` case.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2g5_finetuned_infer_readiness.py --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --checkpoint checkpoints/pilot_v1_overfit_500/pilot_v1_overfit_500-stepstep=500.ckpt --wrapper scripts/run_phase2g_paint_infer.py --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --output-dir outputs/phase2g/infer_runs/B075YLTF7Q/finetuned_a100_noremesh_smoke
+```
+
+Static-check the sbatch syntax:
+
+```bash
+bash -n env/run_phase2g5_finetuned_infer_a100.sbatch
+```
+
+Submit manually only after assistant review:
+
+```bash
+sbatch env/run_phase2g5_finetuned_infer_a100.sbatch
+```
+
+Inspect outputs:
+
+```bash
+ls -lh outputs/phase2g/infer_runs/B075YLTF7Q/finetuned_a100_noremesh_smoke
+find outputs/phase2g/infer_runs/B075YLTF7Q/finetuned_a100_noremesh_smoke -type f \( -name "*.obj" -o -name "*.glb" -o -name "run_plan.json" \) -printf "%p %s bytes\n"
+```
+
+Expected success signs are `PHASE2G5_FINETUNED_INFER_PREFLIGHT_OK`,
+`CUBLAS_MATMUL_OK`, `PHASE2G5_FINETUNED_CHECKPOINT_LOADED_OK`, at least one
+mesh output, and `JOB END: SUCCESS`.
+
+Do not make any quality claim until Phase 2G.6 compares base and fine-tuned
+outputs side by side.

@@ -145,6 +145,7 @@ def write_markdown(report: dict[str, Any], out_md: Path) -> None:
         "## Strict Load",
         f"- attempted: `{report['strict_load_attempted']}`",
         f"- success: `{report['strict_load_success']}`",
+        f"- strict_load_state_dict: `{'OK' if report['strict_load_success'] else 'FAILED'}`",
     ]
     if report.get("error"):
         lines.extend(["", "## Error", report["error"]])
@@ -162,6 +163,8 @@ def write_markdown(report: dict[str, Any], out_md: Path) -> None:
         lines.append(
             f"- `{item['key']}`: shape=`{item['shape']}` dtype=`{item['dtype']}` mean_abs=`{item['mean_abs']}`"
         )
+    if report.get("strict_load_success"):
+        lines.extend(["", "PHASE2G4_CHECKPOINT_LOAD_ONLY_OK"])
     out_md.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 

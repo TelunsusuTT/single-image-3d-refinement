@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Project-local Hunyuan3D-Paint inference wrapper skeleton for Phase 2G."""
+"""Project-local Hunyuan3D-Paint inference wrapper for Phase 2G."""
 
 from __future__ import annotations
 
@@ -12,6 +12,8 @@ from typing import Any
 
 
 DEFAULT_HY21 = Path("/vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1")
+FINETUNED_CHECKPOINT_PREFIX = "unet."
+FINETUNED_TARGET_PATH = "paint_pipeline.models['multiview_model'].pipeline.unet"
 
 
 def nonzero_file(path: Path, label: str, errors: list[str]) -> Path:
@@ -122,16 +124,80 @@ def set_absolute_official_config_paths(conf: Any, hypaint: Path) -> dict[str, st
     }
 
 
-def run_real_inference(args: argparse.Namespace, plan: dict[str, Any]) -> int:
-    if args.mode == "finetuned":
-        raise NotImplementedError(
-            "Fine-tuned inference is intentionally not implemented yet. "
-            "The official demo.py has no checkpoint argument, and the exact "
-            "Lightning checkpoint key mapping to multiview_model.pipeline.unet "
-            "must be confirmed on A100 before loading weights. Refusing to "
-            "silently fall back to base mode."
-        )
+def torch_load_cpu(torch_module: Any, checkpoint: Path) -> Any:
+    try:
+        return torch_module.load(checkpoint, map_location="cpu", weights_only=False)
+    except TypeError:
+        return torch_module.load(checkpoint, map_location="cpu")
 
+
+def extract_state_dict(obj: Any) -> dict[str, Any]:
+    if isinstance(obj, dict) and isinstance(obj.get("state_dict"), dict):
+        return obj["state_dict"]
+    if isinstance(obj, dict):
+        return obj
+    return {}
+
+
+def transformed_state_dict(state: dict[str, Any], prefix: str) -> dict[str, Any]:
+    transformed: dict[str, Any] = {}
+    for key, value in state.items():
+        text_key = str(key)
+        if text_key.startswith(prefix):
+            transformed[text_key[len(prefix):]] = value
+    return transformed
+
+
+def shape_of(value: Any) -> list[int] | None:
+    shape = getattr(value, "shape", None)
+    return list(shape) if shape is not None else None
+
+
+def verify_state_compatibility(transformed: dict[str, Any], target_state: dict[str, Any]) -> None:
+    transformed_keys = set(transformed.keys())
+    target_keys = set(target_state.keys())
+    if transformed_keys != target_keys:
+        missing = sorted(target_keys - transformed_keys)[:20]
+        extra = sorted(transformed_keys - target_keys)[:20]
+        raise RuntimeError(
+            "Fine-tuned checkpoint key set does not match inference target. "
+            f"missing_sample={missing} extra_sample={extra}"
+        )
+    mismatches = []
+    for key in sorted(target_keys):
+        checkpoint_shape = shape_of(transformed[key])
+        target_shape = shape_of(target_state[key])
+        if checkpoint_shape != target_shape:
+            mismatches.append((key, checkpoint_shape, target_shape))
+            if len(mismatches) >= 20:
+                break
+    if mismatches:
+        raise RuntimeError(f"Fine-tuned checkpoint tensor shape mismatches: {mismatches}")
+
+
+def load_finetuned_checkpoint_into_pipeline(checkpoint: Path, paint_pipeline: Any) -> dict[str, Any]:
+    import torch  # type: ignore
+
+    target = paint_pipeline.models["multiview_model"].pipeline.unet
+    target_state = target.state_dict()
+    checkpoint_obj = torch_load_cpu(torch, checkpoint)
+    state = extract_state_dict(checkpoint_obj)
+    transformed = transformed_state_dict(state, FINETUNED_CHECKPOINT_PREFIX)
+    verify_state_compatibility(transformed, target_state)
+    load_result = target.load_state_dict(transformed, strict=True)
+    return {
+        "checkpoint": str(checkpoint),
+        "target_path": FINETUNED_TARGET_PATH,
+        "checkpoint_prefix": FINETUNED_CHECKPOINT_PREFIX,
+        "raw_state_dict_key_count": len(state),
+        "transformed_key_count": len(transformed),
+        "target_key_count": len(target_state),
+        "missing_keys": list(getattr(load_result, "missing_keys", [])),
+        "unexpected_keys": list(getattr(load_result, "unexpected_keys", [])),
+    }
+
+
+def run_real_inference(args: argparse.Namespace, plan: dict[str, Any]) -> int:
     hy21, hypaint = resolve_official_paths()
     prepend_pythonpath(hy21)
     prepend_pythonpath(hypaint)
@@ -159,10 +225,23 @@ def run_real_inference(args: argparse.Namespace, plan: dict[str, Any]) -> int:
     print(f"  realesrgan_ckpt_path: {conf.realesrgan_ckpt_path}")
     print(f"  mesh: {plan['input_mesh']}")
     print(f"  image: {plan['input_image']}")
+    print(f"  checkpoint: {plan['checkpoint']}")
     print(f"  output_mesh: {plan['planned_output_mesh']}")
+    print(f"  planned_output_glb: {plan['planned_output_glb']}")
     print(f"  use_remesh: {plan['use_remesh']}")
 
     paint_pipeline = Hunyuan3DPaintPipeline(conf)
+    if args.mode == "finetuned":
+        if args.checkpoint is None:
+            raise RuntimeError("--checkpoint is required for --mode finetuned")
+        load_summary = load_finetuned_checkpoint_into_pipeline(args.checkpoint.expanduser().resolve(), paint_pipeline)
+        plan["finetuned_checkpoint_load"] = load_summary
+        write_plan(plan)
+        print(f"  finetuned_target_path: {load_summary['target_path']}")
+        print(f"  transformed_key_count: {load_summary['transformed_key_count']}")
+        print(f"  target_key_count: {load_summary['target_key_count']}")
+        print("PHASE2G5_FINETUNED_CHECKPOINT_LOADED_OK")
+
     result = paint_pipeline(
         mesh_path=plan["input_mesh"],
         image_path=plan["input_image"],

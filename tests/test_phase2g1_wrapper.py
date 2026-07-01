@@ -191,14 +191,16 @@ def test_readiness_fails_if_wrapper_missing() -> None:
             == 1
         )
 
-def test_finetuned_non_dry_run_remains_blocked() -> None:
+def test_finetuned_non_dry_run_does_not_fall_back_to_base(monkeypatch: pytest.MonkeyPatch) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
         case_dir = make_case(root)
         checkpoint = write_file(root / "model.ckpt", b"checkpoint")
         out_dir = root / "out_ft_real"
+        monkeypatch.setenv("HY21", str(root / "missing_hy21"))
+        monkeypatch.setenv("HYPAINT", str(root / "missing_hy3dpaint"))
 
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(RuntimeError, match="HY21 path missing"):
             infer_main(
                 [
                     "--case-dir",
