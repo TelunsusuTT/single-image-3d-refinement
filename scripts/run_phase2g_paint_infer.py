@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import Any
 
 
+DEFAULT_HY21 = Path("/vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1")
+
+
 def nonzero_file(path: Path, label: str, errors: list[str]) -> Path:
     resolved = path.expanduser().resolve()
     if not resolved.is_file():
@@ -84,6 +87,39 @@ def run_dry_run(plan: dict[str, Any]) -> int:
     return 0
 
 
+def resolve_official_paths() -> tuple[Path, Path]:
+    hy21_env = os.environ.get("HY21", "")
+    hy21 = Path(hy21_env).expanduser() if hy21_env else DEFAULT_HY21
+    hy21 = hy21.resolve()
+
+    hypaint_env = os.environ.get("HYPAINT", "")
+    hypaint = Path(hypaint_env).expanduser() if hypaint_env else hy21 / "hy3dpaint"
+    hypaint = hypaint.resolve()
+
+    if not hy21.is_dir():
+        raise RuntimeError(f"HY21 path missing: {hy21}")
+    if not hypaint.is_dir():
+        raise RuntimeError(f"HYPAINT path missing: {hypaint}")
+    return hy21, hypaint
+
+
+def prepend_pythonpath(path: Path) -> None:
+    text = str(path)
+    if text not in sys.path:
+        sys.path.insert(0, text)
+
+
+def set_absolute_official_config_paths(conf: Any, hypaint: Path) -> dict[str, str]:
+    cfg_path = hypaint / "cfgs" / "hunyuan-paint-pbr.yaml"
+    realesrgan_path = hypaint / "ckpt" / "RealESRGAN_x4plus.pth"
+    conf.multiview_cfg_path = str(cfg_path)
+    conf.realesrgan_ckpt_path = str(realesrgan_path)
+    return {
+        "multiview_cfg_path": str(cfg_path),
+        "realesrgan_ckpt_path": str(realesrgan_path),
+    }
+
+
 def run_real_inference(args: argparse.Namespace, plan: dict[str, Any]) -> int:
     if args.mode == "finetuned":
         raise NotImplementedError(
@@ -94,14 +130,15 @@ def run_real_inference(args: argparse.Namespace, plan: dict[str, Any]) -> int:
             "silently fall back to base mode."
         )
 
-    hypaint_env = os.environ.get("HYPAINT", "")
-    hypaint = Path(hypaint_env).expanduser() if hypaint_env else Path(
-        "/vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint"
-    )
-    hypaint = hypaint.resolve()
-    if not hypaint.is_dir():
-        raise RuntimeError(f"HYPAINT path missing: {hypaint}")
-    sys.path.insert(0, str(hypaint))
+    hy21, hypaint = resolve_official_paths()
+    prepend_pythonpath(hy21)
+    prepend_pythonpath(hypaint)
+
+    output_dir = Path(plan["output_dir"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+    plan["resolved_hy21"] = str(hy21)
+    plan["resolved_hypaint"] = str(hypaint)
+    write_plan(plan)
 
     # Imports are intentionally inside the non-dry-run branch so tests and
     # Codex preparation never import or execute Hunyuan.
@@ -109,12 +146,24 @@ def run_real_inference(args: argparse.Namespace, plan: dict[str, Any]) -> int:
 
     conf = Hunyuan3DPaintConfig(args.max_num_view, args.resolution)
     conf.device = args.device
+    plan.update(set_absolute_official_config_paths(conf, hypaint))
+    write_plan(plan)
+
+    print("Phase 2G real inference")
+    print(f"  mode: {args.mode}")
+    print(f"  HY21: {hy21}")
+    print(f"  HYPAINT: {hypaint}")
+    print(f"  multiview_cfg_path: {conf.multiview_cfg_path}")
+    print(f"  realesrgan_ckpt_path: {conf.realesrgan_ckpt_path}")
+    print(f"  mesh: {plan['input_mesh']}")
+    print(f"  image: {plan['input_image']}")
+    print(f"  output_mesh: {plan['planned_output_mesh']}")
+
     paint_pipeline = Hunyuan3DPaintPipeline(conf)
-    output_mesh = plan["planned_output_mesh"]
     result = paint_pipeline(
         mesh_path=plan["input_mesh"],
         image_path=plan["input_image"],
-        output_mesh_path=output_mesh,
+        output_mesh_path=plan["planned_output_mesh"],
     )
     plan["actual_output_mesh"] = str(result)
     write_plan(plan)

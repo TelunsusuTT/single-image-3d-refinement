@@ -581,3 +581,41 @@ python scripts/check_phase2g1_wrapper_readiness.py --case-dir outputs/phase2g/in
 Stop after these checks and review the outputs before creating any A100
 inference sbatch. Fine-tuned non-dry-run mode must fail loudly until checkpoint
 key mapping is confirmed.
+
+## Phase 2G.2 Base Inference A100 Smoke
+
+Phase 2G.2 runs one real base Hunyuan3D-Paint inference through the
+project-local wrapper. It does not load the Phase 2F checkpoint and does not run
+fine-tuned inference.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2g2_base_infer_readiness.py --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --wrapper scripts/run_phase2g_paint_infer.py --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --output-dir outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_smoke
+```
+
+Static-check the sbatch syntax:
+
+```bash
+bash -n env/run_phase2g_base_infer_a100.sbatch
+```
+
+Submit manually only after assistant review:
+
+```bash
+sbatch env/run_phase2g_base_infer_a100.sbatch
+```
+
+Inspect logs and outputs:
+
+```bash
+ls -lt logs/slurm
+tail -n 200 logs/slurm/hy3dpaint-phase2g-base-infer-<jobid>.out
+tail -n 200 logs/slurm/hy3dpaint-phase2g-base-infer-<jobid>.err
+find outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_smoke -type f \( -name "*.obj" -o -name "*.glb" -o -name "run_plan.json" \) -printf "%p %s bytes\n"
+```
+
+Success means the base project-local wrapper can execute official inference and
+produce at least one mesh output. Failure means pathing, cache/model
+availability, CUDA runtime, or official inference assumptions need debugging
+before any fine-tuned checkpoint loading is attempted.
