@@ -520,3 +520,31 @@ passing on all 7 samples, `CUBLAS_MATMUL_OK`, `max_steps=500 reached`,
 one printed checkpoint path and size, and `JOB END: SUCCESS`. Failure usually
 means config path drift, checkpoint callback behavior, CUDA memory pressure, or
 a training stability issue such as NaN.
+
+## Phase 2G Checkpoint Inference Sanity
+
+Phase 2G prepares a base-vs-fine-tuned inference sanity check for the 500-step
+`pilot_v1` checkpoint. Do not run Hunyuan inference directly yet.
+
+Inspect the official Hunyuan3D-Paint inference/checkpoint-loading interface
+read-only:
+
+```bash
+python scripts/inspect_phase2g_hy3dpaint_interfaces.py --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --out-json outputs/boards/phase2g_hy3dpaint_interface.json --out-md outputs/boards/phase2g_hy3dpaint_interface.md
+```
+
+Prepare the first local inference case:
+
+```bash
+python scripts/prepare_phase2g_infer_case.py --asset-id B075YLTF7Q --mesh data/raw_assets/phase2b_abo_selected/B075YLTF7Q.glb --reference-image data/hy3dpaint_train_examples/pilot_v1/B075YLTF7Q/render_cond/001_light_AL.png --checkpoint checkpoints/pilot_v1_overfit_500/pilot_v1_overfit_500-stepstep=500.ckpt --out-dir outputs/phase2g/cases/B075YLTF7Q
+```
+
+Run readiness without loading the checkpoint:
+
+```bash
+python scripts/check_phase2g_readiness.py --case-dir outputs/phase2g/cases/B075YLTF7Q --checkpoint checkpoints/pilot_v1_overfit_500/pilot_v1_overfit_500-stepstep=500.ckpt --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint
+```
+
+Stop after readiness and review the interface report before creating an A100
+inference sbatch. Phase 2G should compare base and fine-tuned outputs with the
+same mesh, same reference image, same settings, and the same later board layout.
