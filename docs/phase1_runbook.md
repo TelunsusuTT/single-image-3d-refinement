@@ -591,7 +591,7 @@ fine-tuned inference.
 Run readiness first:
 
 ```bash
-python scripts/check_phase2g2_base_infer_readiness.py --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --wrapper scripts/run_phase2g_paint_infer.py --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --output-dir outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_smoke
+python scripts/check_phase2g2_base_infer_readiness.py --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --wrapper scripts/run_phase2g_paint_infer.py --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --output-dir outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_noremesh_smoke
 ```
 
 Static-check the sbatch syntax:
@@ -612,8 +612,11 @@ Inspect logs and outputs:
 ls -lt logs/slurm
 tail -n 200 logs/slurm/hy3dpaint-phase2g-base-infer-<jobid>.out
 tail -n 200 logs/slurm/hy3dpaint-phase2g-base-infer-<jobid>.err
-find outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_smoke -type f \( -name "*.obj" -o -name "*.glb" -o -name "run_plan.json" \) -printf "%p %s bytes\n"
+find outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_noremesh_smoke -type f \( -name "*.obj" -o -name "*.glb" -o -name "run_plan.json" \) -printf "%p %s bytes\n"
 ```
+
+The sbatch uses `--no-remesh` to bypass the `pymeshlab` remesh path that failed
+in job `255495`.
 
 Success means the base project-local wrapper can execute official inference and
 produce at least one mesh output. Failure means pathing, cache/model

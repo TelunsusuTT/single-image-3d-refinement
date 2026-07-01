@@ -53,6 +53,7 @@ def validate_inputs(args: argparse.Namespace) -> tuple[dict[str, Any], list[str]
         "max_num_view": args.max_num_view,
         "resolution": args.resolution,
         "device": args.device,
+        "use_remesh": not args.no_remesh,
         "dry_run": args.dry_run,
     }
     return plan, errors
@@ -81,6 +82,7 @@ def run_dry_run(plan: dict[str, Any]) -> int:
         "max_num_view",
         "resolution",
         "device",
+        "use_remesh",
     ):
         print(f"  {key}: {plan[key]}")
     print("PHASE2G_INFER_DRY_RUN_OK")
@@ -158,12 +160,15 @@ def run_real_inference(args: argparse.Namespace, plan: dict[str, Any]) -> int:
     print(f"  mesh: {plan['input_mesh']}")
     print(f"  image: {plan['input_image']}")
     print(f"  output_mesh: {plan['planned_output_mesh']}")
+    print(f"  use_remesh: {plan['use_remesh']}")
 
     paint_pipeline = Hunyuan3DPaintPipeline(conf)
     result = paint_pipeline(
         mesh_path=plan["input_mesh"],
         image_path=plan["input_image"],
         output_mesh_path=plan["planned_output_mesh"],
+        use_remesh=plan["use_remesh"],
+        save_glb=True,
     )
     plan["actual_output_mesh"] = str(result)
     write_plan(plan)
@@ -180,6 +185,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--max-num-view", type=int, default=6)
     parser.add_argument("--resolution", type=int, default=512)
     parser.add_argument("--device", default="cuda")
+    parser.add_argument(
+        "--no-remesh",
+        action="store_true",
+        help="Disable official remeshing and keep input geometry fixed.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args(argv)
 

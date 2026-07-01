@@ -18,7 +18,7 @@ outputs/phase2g/infer_cases/B075YLTF7Q
 Expected output directory:
 
 ```text
-outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_smoke/
+outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_noremesh_smoke/
 ```
 
 ## Non-Goals
@@ -39,3 +39,22 @@ outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_smoke/
 A failure at this phase means the base wrapper pathing, official cache/model
 availability, runtime environment, or official inference assumptions need to be
 fixed before any fine-tuned checkpoint loading work begins.
+
+## Run 255495 Failure Note
+
+A first Phase 2G.2 A100 attempt, job `255495`, reached CUDA sanity, loaded the
+official base model, and printed `Models Loaded.` It failed after model loading
+inside the official default remesh path:
+
+```text
+Hunyuan3DPaintPipeline.__call__ -> remesh_mesh(...) -> import pymeshlab
+```
+
+The observed error was a `pymeshlab` import failure involving
+`libQt5OpenGL.so.5` and `Qt_5_PRIVATE_API`. This is not a CUDA, data, or base
+model-load failure. The Phase 2G fix is to use fixed-mesh inference with
+`use_remesh=False`, exposed by the project wrapper as `--no-remesh`.
+
+Skipping remesh is also the better experimental choice for the later
+base-vs-fine-tuned comparison because geometry should remain fixed across both
+runs.

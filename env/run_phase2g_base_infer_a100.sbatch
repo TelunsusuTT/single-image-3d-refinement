@@ -29,7 +29,7 @@ export PYTHONDONTWRITEBYTECODE=1
 export PYTHONPATH="$HYPAINT:$HY21:${PYTHONPATH:-}"
 
 CASE_DIR="$PROJ/outputs/phase2g/infer_cases/B075YLTF7Q"
-OUTPUT_DIR="$PROJ/outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_smoke"
+OUTPUT_DIR="$PROJ/outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_noremesh_smoke"
 WRAPPER="$PROJ/scripts/run_phase2g_paint_infer.py"
 
 mkdir -p "$PROJ/logs/slurm"
@@ -80,7 +80,8 @@ python "$WRAPPER" \
   --mode base \
   --max-num-view 6 \
   --resolution 512 \
-  --device cuda
+  --device cuda \
+  --no-remesh
 
 echo "===== OUTPUT SEARCH ====="
 mesh_count=0

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import sys
+
+import pytest
 import tempfile
 from pathlib import Path
 
@@ -84,6 +86,33 @@ def test_wrapper_dry_run_passes_for_base_without_checkpoint() -> None:
         plan = json.loads((out_dir / "run_plan.json").read_text(encoding="utf-8"))
         assert plan["mode"] == "base"
         assert plan["checkpoint"] == ""
+        assert plan["use_remesh"] is True
+
+
+def test_wrapper_dry_run_with_no_remesh_writes_use_remesh_false() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        case_dir = make_case(root)
+        out_dir = root / "out_base_noremesh"
+
+        assert (
+            infer_main(
+                [
+                    "--case-dir",
+                    str(case_dir),
+                    "--output-dir",
+                    str(out_dir),
+                    "--mode",
+                    "base",
+                    "--no-remesh",
+                    "--dry-run",
+                ]
+            )
+            == 0
+        )
+        plan = json.loads((out_dir / "run_plan.json").read_text(encoding="utf-8"))
+        assert plan["mode"] == "base"
+        assert plan["use_remesh"] is False
 
 
 def test_wrapper_dry_run_passes_for_finetuned_with_checkpoint() -> None:
@@ -112,6 +141,7 @@ def test_wrapper_dry_run_passes_for_finetuned_with_checkpoint() -> None:
         plan = json.loads((out_dir / "run_plan.json").read_text(encoding="utf-8"))
         assert plan["mode"] == "finetuned"
         assert plan["checkpoint"] == str(checkpoint.resolve())
+        assert plan["use_remesh"] is True
 
 
 def test_wrapper_dry_run_fails_for_finetuned_without_checkpoint() -> None:
@@ -160,3 +190,25 @@ def test_readiness_fails_if_wrapper_missing() -> None:
             )
             == 1
         )
+
+def test_finetuned_non_dry_run_remains_blocked() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        case_dir = make_case(root)
+        checkpoint = write_file(root / "model.ckpt", b"checkpoint")
+        out_dir = root / "out_ft_real"
+
+        with pytest.raises(NotImplementedError):
+            infer_main(
+                [
+                    "--case-dir",
+                    str(case_dir),
+                    "--output-dir",
+                    str(out_dir),
+                    "--mode",
+                    "finetuned",
+                    "--checkpoint",
+                    str(checkpoint),
+                ]
+            )
+
