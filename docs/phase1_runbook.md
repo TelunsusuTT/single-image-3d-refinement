@@ -997,3 +997,41 @@ If the report recommends a candidate with tiny or near-zero deltas, proceed to a
 true-PBR 1-step or 50-step training smoke. If no exact tiny-delta candidate is
 found, move to Strategy B and prepare a training-compatible resume checkpoint
 from the official inference UNet.
+
+## Phase 2J.2 True-PBR Checkpoint Save Smoke
+
+Phase 2J.2 runs official `train.py` for one step with `base_learning_rate: 0.0`,
+saves exactly one true-PBR-initialized checkpoint, and compares that checkpoint
+against the official inference base UNet. This is a checkpoint-save smoke, not
+real fine-tuning.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2j2_save_smoke_readiness.py --examples-json data/hy3dpaint_train_examples/pilot_v1/examples_train_abs.json --config configs/ft_pilot_v1_truepbr_1step_lr0.yaml --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --checkpoint-root checkpoints/pilot_v1_truepbr_1step_lr0 --output-dir outputs/phase2j/true_pbr_training_smoke/one_step_lr0
+```
+
+Static-check the config and sbatch:
+
+```bash
+grep -n "pretrained_model_name_or_path\|base_learning_rate\|max_steps\|every_n_train_steps\|save_weights_only\|dirpath" configs/ft_pilot_v1_truepbr_1step_lr0.yaml
+bash -n env/run_phase2j2_truepbr_1step_lr0_a100.sbatch
+```
+
+Submit manually only after assistant review:
+
+```bash
+sbatch env/run_phase2j2_truepbr_1step_lr0_a100.sbatch
+```
+
+Inspect the saved checkpoint and delta report:
+
+```bash
+find checkpoints/pilot_v1_truepbr_1step_lr0 -type f -name "*.ckpt" -printf "%p %s bytes\n"
+sed -n '1,260p' outputs/phase2j/true_pbr_training_smoke/one_step_lr0/base_vs_truepbr1step_lr0_delta.md
+```
+
+If the checkpoint-vs-base delta is tiny, proceed to a true-PBR 50-step
+conservative training smoke. If the delta is not tiny, debug checkpoint saving,
+training initialization, and any train.py initialization mutations before
+running longer jobs.
