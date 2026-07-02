@@ -1073,3 +1073,40 @@ there was no NaN or OOM, and exactly one new checkpoint was saved. Failure means
 stop before inference and inspect the Slurm log, readiness output, official
 strict checker output, and checkpoint search section.
 
+## Phase 2J.4 True-PBR 50-Step Evaluation
+
+Phase 2J.4 evaluates the correctly initialized true-PBR 50-step checkpoint. It
+runs load-only compatibility, base-vs-checkpoint numeric delta, no-remesh
+fine-tuned inference, and the Phase 2G.6 diagnostic texture comparison.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2j4_truepbr50_eval_readiness.py --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --base-dir outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_noremesh_smoke --checkpoint checkpoints/pilot_v1_truepbr_50_lr1e6/pilot_v1_truepbr_50_lr1e6-stepstep=50.ckpt --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --load-output-dir outputs/phase2j/eval_truepbr50/load_only --delta-output-dir outputs/phase2j/eval_truepbr50/delta_audit --infer-output-dir outputs/phase2j/eval_truepbr50/infer/B075YLTF7Q --compare-output-dir outputs/phase2j/eval_truepbr50/compare/B075YLTF7Q
+```
+
+Static-check the sbatch:
+
+```bash
+bash -n env/run_phase2j4_eval_truepbr50_a100.sbatch
+```
+
+Submit manually only after assistant review:
+
+```bash
+sbatch env/run_phase2j4_eval_truepbr50_a100.sbatch
+```
+
+Inspect reports after the job:
+
+```bash
+sed -n '1,220p' outputs/phase2j/eval_truepbr50/load_only/load_only_report.md
+sed -n '1,260p' outputs/phase2j/eval_truepbr50/delta_audit/base_vs_truepbr50_delta.md
+sed -n '1,260p' outputs/phase2j/eval_truepbr50/compare/B075YLTF7Q/base_vs_finetuned_report.md
+```
+
+Compare the true-PBR 50-step metrics against the previous collapsed-checkpoint
+metrics before making any visual-quality claim. A successful Phase 2J.4 run only
+proves the checkpoint loads, differs from base by a measurable amount, produces
+fixed-mesh outputs, and generates diagnostic comparison artifacts.
+
