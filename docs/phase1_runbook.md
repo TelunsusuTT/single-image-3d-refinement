@@ -1110,3 +1110,42 @@ metrics before making any visual-quality claim. A successful Phase 2J.4 run only
 proves the checkpoint loads, differs from base by a measurable amount, produces
 fixed-mesh outputs, and generates diagnostic comparison artifacts.
 
+## Phase 2K.1 True-PBR 200-Step Train-Eval
+
+Phase 2K.1 increases adaptation strength after the stable true-PBR 50-step
+result. It trains 200 steps at `base_learning_rate: 1e-6`, saves exactly one
+checkpoint, then runs load-only, delta audit, no-remesh inference, and texture
+comparison in the same A100 workflow.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2k1_truepbr200_readiness.py --examples-json data/hy3dpaint_train_examples/pilot_v1/examples_train_abs.json --config configs/ft_pilot_v1_truepbr_200_lr1e6.yaml --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --checkpoint-root checkpoints/pilot_v1_truepbr_200_lr1e6 --case-dir outputs/phase2g/infer_cases/B075YLTF7Q --base-dir outputs/phase2g/infer_runs/B075YLTF7Q/base_a100_noremesh_smoke --eval-output-root outputs/phase2k/eval_truepbr200
+```
+
+Static-check the config and sbatch:
+
+```bash
+grep -n "pretrained_model_name_or_path\|base_learning_rate\|max_steps\|every_n_train_steps\|save_top_k\|save_last\|save_weights_only\|dirpath" configs/ft_pilot_v1_truepbr_200_lr1e6.yaml
+bash -n env/run_phase2k1_truepbr_200_train_eval_a100.sbatch
+```
+
+Commit the setup before running the job, then submit manually:
+
+```bash
+sbatch env/run_phase2k1_truepbr_200_train_eval_a100.sbatch
+```
+
+Inspect train, load, delta, inference, and comparison reports:
+
+```bash
+find checkpoints/pilot_v1_truepbr_200_lr1e6 -type f -name "*.ckpt" -printf "%p %s bytes\n"
+sed -n '1,220p' outputs/phase2k/eval_truepbr200/load_only/load_only_report.md
+sed -n '1,260p' outputs/phase2k/eval_truepbr200/delta_audit/base_vs_truepbr200_delta.md
+sed -n '1,260p' outputs/phase2k/eval_truepbr200/compare/B075YLTF7Q/base_vs_finetuned_report.md
+```
+
+Compare the 200-step metrics against the true-PBR 50-step results and the old
+collapsed-checkpoint metrics. A useful result should move more than 50-step while
+remaining far from the previous texture/PBR collapse.
+
