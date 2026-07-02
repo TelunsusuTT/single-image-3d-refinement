@@ -883,3 +883,47 @@ sed -n '1,220p' outputs/phase2h/compare/B075YLTF7Q/pilot_v1_conservative_50_lr1e
 Compare albedo, metallic, and roughness metrics against the 500-step collapsed
 checkpoint diagnostics before making any retraining decision. This evaluation is
 still diagnostic only and should not be treated as a final quality claim.
+
+## Phase 2I Pretrained Initialization Audit
+
+Phase 2I audits whether the 50-step and 500-step training checkpoints are
+numerically close to the official Hunyuan3D-Paint PBR inference UNet. This is
+needed because strict key matching proves loadability, not correct pretrained
+initialization.
+
+Run the config initialization inspection without loading checkpoints:
+
+```bash
+python scripts/inspect_phase2i_training_initialization.py --configs configs/ft_pilot_v1_conservative_50_lr1e6.yaml configs/ft_pilot_v1_overfit_500.yaml --out-json outputs/phase2i/pretrained_initialization_audit/config_initialization_report.json --out-md outputs/phase2i/pretrained_initialization_audit/config_initialization_report.md
+```
+
+Run the audit readiness preflight:
+
+```bash
+python scripts/check_phase2i_audit_readiness.py --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --config configs/ft_pilot_v1_conservative_50_lr1e6.yaml configs/ft_pilot_v1_overfit_500.yaml --checkpoint checkpoints/pilot_v1_conservative_50_lr1e6/pilot_v1_conservative_50_lr1e6-stepstep=50.ckpt checkpoints/pilot_v1_overfit_500/pilot_v1_overfit_500-stepstep=500.ckpt --output-dir outputs/phase2i/pretrained_initialization_audit
+```
+
+Static-check the sbatch before submission:
+
+```bash
+bash -n env/run_phase2i_init_audit_a100.sbatch
+```
+
+Submit manually after assistant review:
+
+```bash
+sbatch env/run_phase2i_init_audit_a100.sbatch
+```
+
+Inspect the reports:
+
+```bash
+sed -n '1,220p' outputs/phase2i/pretrained_initialization_audit/config_initialization_report.md
+sed -n '1,260p' outputs/phase2i/pretrained_initialization_audit/base_vs_checkpoint_weight_deltas.md
+```
+
+If the 50-step checkpoint has large deltas from the official base UNet, the next
+step is likely to build a base-initialized training checkpoint or redesign the
+training initialization strategy. If the 50-step checkpoint is close to the base
+UNet but output still collapses, investigate high sensitivity, non-UNet mismatch,
+material/export behavior, or target distribution mismatch before retraining.
