@@ -1035,3 +1035,41 @@ If the checkpoint-vs-base delta is tiny, proceed to a true-PBR 50-step
 conservative training smoke. If the delta is not tiny, debug checkpoint saving,
 training initialization, and any train.py initialization mutations before
 running longer jobs.
+
+## Phase 2J.3 True-PBR 50-Step Conservative Fine-Tuning
+
+Phase 2J.3 is the first real true-PBR fine-tuning run. It uses the local
+official `hunyuan3d-paintpbr-v2-1` pipeline as the training initialization,
+`base_learning_rate: 1e-6`, and `max_steps: 50`. Do not run inference until this
+training job succeeds and exactly one checkpoint is saved.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2j3_truepbr50_readiness.py --examples-json data/hy3dpaint_train_examples/pilot_v1/examples_train_abs.json --config configs/ft_pilot_v1_truepbr_50_lr1e6.yaml --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --checkpoint-root checkpoints/pilot_v1_truepbr_50_lr1e6
+```
+
+Static-check the config and sbatch:
+
+```bash
+grep -n "pretrained_model_name_or_path\|base_learning_rate\|max_steps\|every_n_train_steps\|save_top_k\|save_last\|save_weights_only\|dirpath" configs/ft_pilot_v1_truepbr_50_lr1e6.yaml
+bash -n env/run_phase2j3_truepbr_50_lr1e6_a100.sbatch
+```
+
+Submit manually only after assistant review:
+
+```bash
+sbatch env/run_phase2j3_truepbr_50_lr1e6_a100.sbatch
+```
+
+Inspect the checkpoint:
+
+```bash
+find checkpoints/pilot_v1_truepbr_50_lr1e6 -type f -name "*.ckpt" -printf "%p %s bytes\n"
+```
+
+Success means the strict example check passed, training reached `max_steps=50`,
+there was no NaN or OOM, and exactly one new checkpoint was saved. Failure means
+stop before inference and inspect the Slurm log, readiness output, official
+strict checker output, and checkpoint search section.
+
