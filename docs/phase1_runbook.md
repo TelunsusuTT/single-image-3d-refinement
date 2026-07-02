@@ -927,3 +927,38 @@ step is likely to build a base-initialized training checkpoint or redesign the
 training initialization strategy. If the 50-step checkpoint is close to the base
 UNet but output still collapses, investigate high sensitivity, non-UNet mismatch,
 material/export behavior, or target distribution mismatch before retraining.
+
+## Phase 2J.0 True PBR Initialization Planning
+
+Phase 2J.0 plans how to start training from the same official PBR weights used
+by inference. Do not train, run inference, submit Slurm, or modify official
+Hunyuan source in this phase.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2j0_readiness.py --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --search-root /vol/bitbucket/ct1022/hy3dpaint_finetune /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --output-dir outputs/phase2j/true_pbr_initialization
+```
+
+Locate likely local official PBR weight directories:
+
+```bash
+python scripts/locate_phase2j_official_pbr_weights.py --search-root /vol/bitbucket/ct1022/hy3dpaint_finetune /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --out-json outputs/phase2j/true_pbr_initialization/pbr_weight_candidates.json --out-md outputs/phase2j/true_pbr_initialization/pbr_weight_candidates.md
+```
+
+Inspect training initialization text interfaces:
+
+```bash
+python scripts/inspect_phase2j_training_init_interfaces.py --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --out-json outputs/phase2j/true_pbr_initialization/training_init_interfaces.json --out-md outputs/phase2j/true_pbr_initialization/training_init_interfaces.md
+```
+
+Review the reports before changing any training config:
+
+```bash
+sed -n '1,220p' outputs/phase2j/true_pbr_initialization/pbr_weight_candidates.md
+sed -n '1,260p' outputs/phase2j/true_pbr_initialization/training_init_interfaces.md
+```
+
+Wait for assistant review before choosing Strategy A, B, or C. The preferred
+first attempt is Strategy A if the official training interface appears to accept
+a local `hunyuan3d-paintpbr-v2-1` pipeline directory.
