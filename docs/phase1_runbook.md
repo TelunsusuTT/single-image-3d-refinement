@@ -962,3 +962,38 @@ sed -n '1,260p' outputs/phase2j/true_pbr_initialization/training_init_interfaces
 Wait for assistant review before choosing Strategy A, B, or C. The preferred
 first attempt is Strategy A if the official training interface appears to accept
 a local `hunyuan3d-paintpbr-v2-1` pipeline directory.
+
+## Phase 2J.1 True PBR Initialization Probe
+
+Phase 2J.1 tests Strategy A without training: initialize the training model from
+the local `hunyuan3d-paintpbr-v2-1` pipeline directory and compare its UNet
+weights to the official inference base UNet.
+
+Run readiness first:
+
+```bash
+python scripts/check_phase2j1_truepbr_init_readiness.py --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint --config configs/ft_pilot_v1_truepbr_init_probe.yaml --pbr-dir caches/hf/hub/models--tencent--Hunyuan3D-2.1/snapshots/0b94677654c57bb9a6b6845cd7b704ccf551d327/hunyuan3d-paintpbr-v2-1 --output-dir outputs/phase2j/true_pbr_initialization/init_probe
+```
+
+Static-check the sbatch:
+
+```bash
+bash -n env/run_phase2j1_truepbr_init_probe_a100.sbatch
+```
+
+Submit manually only after assistant review:
+
+```bash
+sbatch env/run_phase2j1_truepbr_init_probe_a100.sbatch
+```
+
+Inspect the initialization-equivalence report:
+
+```bash
+sed -n '1,260p' outputs/phase2j/true_pbr_initialization/init_probe/truepbr_init_compare.md
+```
+
+If the report recommends a candidate with tiny or near-zero deltas, proceed to a
+true-PBR 1-step or 50-step training smoke. If no exact tiny-delta candidate is
+found, move to Strategy B and prepare a training-compatible resume checkpoint
+from the official inference UNet.
