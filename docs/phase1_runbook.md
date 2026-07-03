@@ -1149,3 +1149,55 @@ Compare the 200-step metrics against the true-PBR 50-step results and the old
 collapsed-checkpoint metrics. A useful result should move more than 50-step while
 remaining far from the previous texture/PBR collapse.
 
+## Phase 2K.2 True-PBR 200-Step Multi-Case Evaluation
+
+Phase 2K.2 evaluates the existing true-PBR 200-step checkpoint across three
+additional pilot assets without training or creating a new checkpoint. It runs
+base no-remesh inference, fine-tuned no-remesh inference, per-case comparison,
+and aggregate metric reporting.
+
+Run the local safe checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q tests/test_phase2k2_truepbr200_multicase_readiness.py tests/test_phase2k2_multicase_aggregate.py
+```
+
+Run readiness:
+
+```bash
+python scripts/check_phase2k2_truepbr200_multicase_readiness.py --cases-config configs/phase2k2_truepbr200_cases.json --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint
+```
+
+Prepare case directories, then inspect them:
+
+```bash
+python scripts/prepare_phase2k2_multicase_cases.py --cases-config configs/phase2k2_truepbr200_cases.json
+find outputs/phase2k/multicase_truepbr200/cases -maxdepth 3 -type l -o -type f
+```
+
+Static-check the sbatch:
+
+```bash
+bash -n env/run_phase2k2_truepbr200_multicase_eval_a100.sbatch
+```
+
+Commit the setup before running the job, then submit manually:
+
+```bash
+sbatch env/run_phase2k2_truepbr200_multicase_eval_a100.sbatch
+```
+
+Inspect per-case reports and aggregate summary:
+
+```bash
+for asset_id in B07HSK7MXZ B073NZS57V B07B8MWCR8; do
+  sed -n '1,220p' outputs/phase2k/multicase_truepbr200/compare/$asset_id/base_vs_finetuned_report.md
+done
+sed -n '1,260p' outputs/phase2k/multicase_truepbr200/summary/multicase_metrics_summary.md
+```
+
+Compare the multi-case true-PBR 200-step metrics against the 50-step result and
+old collapsed-checkpoint metrics. Treat this as diagnostic evidence, not a final
+quality claim.
+

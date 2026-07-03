@@ -1,0 +1,12 @@
+{
+  "checkpoint": "checkpoints/pilot_v1_truepbr_200_lr1e6/pilot_v1_truepbr_200_lr1e6-stepstep=200.ckpt",
+  "output_root": "outputs/phase2k/multicase_truepbr200",
+  "selected_asset_ids": [
+    "B07HSK7MXZ",
+    "B073NZS57V",
+    "B07B8MWCR8"
+  ],
+  "raw_mesh_path_template": "data/raw_assets/phase2b_abo_selected/{asset_id}.glb",
+  "reference_image_path_template": "data/hy3dpaint_train_examples/pilot_v1/{asset_id}/render_cond/001_light_AL.png",
+  "reference_case_layout_path": "outputs/phase2g/infer_cases/B075YLTF7Q"
+}
