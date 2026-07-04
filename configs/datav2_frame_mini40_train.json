@@ -1,0 +1,28 @@
+{
+  "experiment_name": "datav2_frame_mini40_truepbr_500_lr1e6",
+  "dataset_name": "datav2_frame_panels_mini40",
+  "training_yaml": "configs/ft_datav2_frame_mini40_truepbr_500_lr1e6.yaml",
+  "hypaint_dir": "/vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint",
+  "train_examples_json": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/hy3dpaint_train_examples/datav2_frame_panels_mini40/examples_train_abs.json",
+  "val_examples_json": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/hy3dpaint_train_examples/datav2_frame_panels_mini40/examples_val_abs.json",
+  "test_examples_json": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/hy3dpaint_train_examples/datav2_frame_panels_mini40/examples_test_abs.json",
+  "split_membership_csv": "data/manifests/datav2_frame_panels/datav2_frame_panels_split_membership.csv",
+  "train_count_expected": 32,
+  "val_count_expected": 4,
+  "test_count_expected": 4,
+  "steps": 500,
+  "learning_rate": "1e-6",
+  "output_checkpoint_dir": "checkpoints/datav2_frame_mini40_truepbr_500_lr1e6",
+  "official_pbr_source_dir": "/vol/bitbucket/ct1022/hy3dpaint_finetune/caches/hf/hub/models--tencent--Hunyuan3D-2.1/snapshots/0b94677654c57bb9a6b6845cd7b704ccf551d327/hunyuan3d-paintpbr-v2-1",
+  "readiness_report_dir": "outputs/phase2l/datav2_frame_panels/mini40_train_readiness",
+  "forbidden_checkpoint_markers": [
+    "pilot_v1_overfit_500",
+    "pilot_v1_conservative_50_lr1e6",
+    "sd2-community"
+  ],
+  "selected_input_view_default": "005",
+  "primary_eval_views": [
+    "004",
+    "005"
+  ]
+}

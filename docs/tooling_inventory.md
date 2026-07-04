@@ -93,6 +93,8 @@ Status labels:
 | `check_phase2h1_readiness.py` | Check conservative wrong-init recovery readiness | examples/config/checkpoint paths | stdout preflight | No | No | legacy | Keep for history; do not base new runs on wrong-init configs. |
 | `check_phase2j3_truepbr50_readiness.py` | Check true-PBR 50-step train readiness | examples/config/HYPAINT/checkpoint root | stdout preflight | No | No | reuse | Template for true-PBR training preflights. |
 | `check_phase2k1_truepbr200_readiness.py` | Check true-PBR 200-step train-eval readiness | examples/config/case/base/eval paths | stdout preflight | No | No | reuse | Preferred pattern for combined train-eval gates. |
+| `check_datav2_frame_mini40_training_readiness.py` | Check Data v2 mini40 true-PBR training readiness | mini40 training JSON config | stdout, readiness JSON/MD | No | No | reuse | Preferred static gate before the Phase 2L.4A mini40 A100 sbatch. |
+| `inspect_datav2_frame_mini40_checkpoint.py` | Stat-only mini40 checkpoint inspection | mini40 training JSON config | checkpoint inspection JSON/MD | No | No | reuse | Use after Phase 2L.4A training to verify a step-500 checkpoint exists without loading it. |
 
 ## Hunyuan Inference and Checkpoint Diagnostics
 
@@ -196,6 +198,11 @@ Status labels:
   manually run `datav2_render_frame_panel_examples_blender.py`, then use
   `datav2_build_frame_panel_examples_json.py` and
   `check_datav2_frame_panel_examples.py` before any A100 training prep.
+- Data v2 mini40 true-PBR training prep: use
+  `check_datav2_frame_mini40_training_readiness.py`,
+  `env/run_datav2_frame_mini40_train_a100.sbatch`, and
+  `inspect_datav2_frame_mini40_checkpoint.py`; do not start full101 training
+  until the mini40 run and checkpoint are reviewed.
 - ABO visual probe setup: use `datav2_prepare_abo_probe_manifest.py`,
   `datav2_make_abo_download_plan.py`,
   `datav2_inspect_abo_probe_blender.py`, and

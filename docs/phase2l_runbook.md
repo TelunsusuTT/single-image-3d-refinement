@@ -348,6 +348,64 @@ Then rebuild examples JSON and run the checker again. Do not start A100
 training yet; the next phase should run strict example validation and prepare
 the mini40 training sbatch.
 
+## Phase 2L.4A Mini40 True-PBR Training Setup
+
+Phase 2L.4A prepares a conservative 500-step true-PBR training job for the
+`datav2_frame_panels_mini40` rendered examples. It is a readiness and sbatch
+setup phase: Codex should not submit Slurm jobs, run Hunyuan, load
+checkpoints, or start full101 training.
+
+Run static checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q \
+  tests/test_datav2_frame_mini40_training_readiness.py \
+  tests/test_datav2_frame_mini40_checkpoint_inspection.py
+bash -n env/run_datav2_frame_mini40_train_a100.sbatch
+```
+
+Run the mini40 training readiness gate:
+
+```bash
+python scripts/check_datav2_frame_mini40_training_readiness.py \
+  --config configs/datav2_frame_mini40_train.json
+```
+
+Expected success marker:
+
+```text
+PHASE2L4A_MINI40_TRAINING_READINESS_OK
+```
+
+Submit the A100 job manually only after the readiness gate passes:
+
+```bash
+sbatch env/run_datav2_frame_mini40_train_a100.sbatch
+```
+
+After the job finishes, inspect the Slurm log under
+`logs/slurm/datav2_frame_mini40_truepbr_500_lr1e6-<jobid>.out`. Success means
+the job reached max steps, found exactly one new checkpoint under
+`checkpoints/datav2_frame_mini40_truepbr_500_lr1e6`, printed
+`PHASE2L4A_MINI40_CHECKPOINT_INSPECTION_OK`, and ended with:
+
+```text
+PHASE2L4A_MINI40_TRUEPBR_TRAIN_OK
+```
+
+Inspect the checkpoint without loading it:
+
+```bash
+python scripts/inspect_datav2_frame_mini40_checkpoint.py \
+  --config configs/datav2_frame_mini40_train.json
+```
+
+If the readiness gate fails, fix the package paths, examples JSONs, true-PBR
+source path, or checkpoint configuration before submitting. If training fails,
+review the Slurm log and do not proceed to full101 or comparison runs until the
+mini40 checkpoint behavior is understood.
+
 ## Phase 2L.2A ABO Probe Inspection Setup
 
 Phase 2L.2A checks whether the top ABO geometry candidates are visually useful
