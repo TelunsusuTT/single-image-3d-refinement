@@ -36,6 +36,9 @@ Status labels:
 | `datav2_make_human_review_template.py` | Create curation template from ranked candidates | ranked candidate CSV | human-review CSV | No | No | reuse | Use after mining; does not auto-accept candidates. |
 | `datav2_mine_abo_geometry_candidates.py` | Rank ABO flat-panel candidates from asset geometry | Data v2 mining config, ABO `3dmodels.csv.gz` | geometry candidate CSV/MD and summary JSON | No | No | reuse | Preferred when ABO semantic title/category fields are unavailable; does not score `images.csv.gz` as candidates. |
 | `datav2_make_abo_geometry_review_template.py` | Create curation template from ABO geometry candidates | ABO geometry candidate CSV | human-review CSV | No | No | reuse | Use after geometry mining; does not auto-accept candidates. |
+| `datav2_resolve_manual_abo_item_ids.py` | Resolve manually selected ABO item IDs against local 3D metadata | item-id text file, ABO `3dmodels.csv.gz` | download manifest CSV, JSON/MD resolution summary | No | No | reuse | Use when web-page semantic review identifies promising ABO IDs; missing IDs do not get URLs. |
+| `datav2_download_manual_abo_glbs.py` | Optionally download manually resolved ABO GLBs | manual ABO download manifest | local GLBs, JSON/MD download summary | No | No | runtime | Network script; always dry-run first and do not run in Codex unless explicitly requested. |
+| `datav2_make_manual_abo_review_template.py` | Create curation template from manual ABO manifest | manual ABO download manifest | human-review CSV | No | No | reuse | Use after resolving manual IDs; does not auto-accept candidates. |
 | `datav2_prepare_abo_probe_manifest.py` | Prepare top-k ABO probe availability manifest | ABO geometry candidate CSV, probe config | probe manifest CSV, availability JSON/MD | No | No | reuse | Use before any Phase 2L.2A download or visual inspection. |
 | `datav2_make_abo_download_plan.py` | Create non-executing download plan for missing ABO probe assets | probe manifest CSV | safe shell plan | No | No | reuse | Emits commented download commands only; does not download. |
 | `datav2_make_abo_probe_human_review_template.py` | Create curation template from probe manifest and optional inspection CSV | probe manifest, optional inspection CSV | human-review CSV | No | No | reuse | Works before Blender inspection; human review remains required. |
@@ -166,6 +169,10 @@ Status labels:
 - ABO geometry metadata mining: use `datav2_mine_abo_geometry_candidates.py`
   and `datav2_make_abo_geometry_review_template.py` when local ABO metadata has
   geometry fields but no useful semantic titles/tags.
+- Manual ABO item-id acquisition: use `datav2_resolve_manual_abo_item_ids.py`,
+  dry-run `datav2_download_manual_abo_glbs.py`, and
+  `datav2_make_manual_abo_review_template.py` when the user has manually
+  collected promising ABO IDs from product-page inspection.
 - ABO visual probe setup: use `datav2_prepare_abo_probe_manifest.py`,
   `datav2_make_abo_download_plan.py`,
   `datav2_inspect_abo_probe_blender.py`, and

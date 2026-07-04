@@ -116,6 +116,66 @@ head -n 41 data/candidates/datav2_abo_geometry_flat_panel_candidates.csv
 candidates. Candidate rank is not acceptance; human review still decides
 accepted/rejected rows and must fill `selected_input_view` before later phases.
 
+## Phase 2L.2A Manual ABO Item-ID Workflow
+
+Use this path when manual ABO product-page inspection identifies promising item
+IDs that may not rank highly by geometry alone. Do not run Blender, Hunyuan,
+Slurm, training, package installs, or checkpoint loading.
+
+Create the item-id text file with one ID per line:
+
+```text
+data/candidates/datav2_manual_abo_item_ids.txt
+```
+
+Blank lines are ignored, lines starting with `#` are ignored, and inline notes
+after `#` are allowed.
+
+Resolve IDs against local `3dmodels.csv.gz` metadata:
+
+```bash
+python scripts/datav2_resolve_manual_abo_item_ids.py \
+  --item-ids data/candidates/datav2_manual_abo_item_ids.txt \
+  --metadata data/metadata/abo/3dmodels.csv.gz \
+  --out-csv data/candidates/datav2_manual_abo_download_manifest.csv
+```
+
+Inspect found and missing counts:
+
+```bash
+less outputs/phase2l/manual_abo_download/manual_abo_resolve_summary.md
+head -n 20 data/candidates/datav2_manual_abo_download_manifest.csv
+```
+
+Run the downloader only as a dry run first:
+
+```bash
+python scripts/datav2_download_manual_abo_glbs.py \
+  --manifest data/candidates/datav2_manual_abo_download_manifest.csv \
+  --out-root data/raw_assets/abo \
+  --dry-run
+```
+
+Real download should happen only after reviewing the dry-run summary and only
+when explicitly requested:
+
+```bash
+python scripts/datav2_download_manual_abo_glbs.py \
+  --manifest data/candidates/datav2_manual_abo_download_manifest.csv \
+  --out-root data/raw_assets/abo
+```
+
+Create the human-review template:
+
+```bash
+python scripts/datav2_make_manual_abo_review_template.py \
+  --manifest data/candidates/datav2_manual_abo_download_manifest.csv \
+  --out-csv data/candidates/datav2_manual_abo_human_review.csv
+```
+
+Later Blender contact sheets should be used to decide whether each asset is a
+flat rectangular graphic panel and to fill `selected_input_view`.
+
 ## Phase 2L.2A ABO Probe Inspection Setup
 
 Phase 2L.2A checks whether the top ABO geometry candidates are visually useful
