@@ -39,6 +39,8 @@ Status labels:
 | `datav2_prepare_abo_probe_manifest.py` | Prepare top-k ABO probe availability manifest | ABO geometry candidate CSV, probe config | probe manifest CSV, availability JSON/MD | No | No | reuse | Use before any Phase 2L.2A download or visual inspection. |
 | `datav2_make_abo_download_plan.py` | Create non-executing download plan for missing ABO probe assets | probe manifest CSV | safe shell plan | No | No | reuse | Emits commented download commands only; does not download. |
 | `datav2_make_abo_probe_human_review_template.py` | Create curation template from probe manifest and optional inspection CSV | probe manifest, optional inspection CSV | human-review CSV | No | No | reuse | Works before Blender inspection; human review remains required. |
+| `datav2_dedupe_abo_probe_candidates.py` | Deduplicate ABO geometry candidates for acquisition | dedup config, geometry candidate CSV | dedup candidate CSV, JSON/MD summary | No | No | reuse | Use before downloading top ABO probe assets to avoid near-duplicates. |
+| `datav2_make_abo_dedup_download_manifest.py` | Convert deduped ABO candidates into download-ready manifest | dedup config, dedup candidate CSV | download manifest CSV | No | No | reuse | Download-ready only; does not download. |
 
 ## Asset Download and Inspection
 
@@ -166,3 +168,5 @@ Status labels:
   `datav2_inspect_abo_probe_blender.py`, and
   `datav2_make_abo_probe_human_review_template.py`; do not download assets or
   run Blender in Codex.
+- ABO dedup acquisition prep: use `datav2_dedupe_abo_probe_candidates.py` and
+  `datav2_make_abo_dedup_download_manifest.py` before downloading probe GLBs.

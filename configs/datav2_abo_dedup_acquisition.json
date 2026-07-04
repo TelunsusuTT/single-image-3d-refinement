@@ -1,0 +1,18 @@
+{
+  "input_candidates_csv": "data/candidates/datav2_abo_geometry_flat_panel_candidates.csv",
+  "target_count": 30,
+  "max_input_rows": 300,
+  "dedup_candidates_csv": "data/candidates/datav2_abo_dedup_probe_candidates.csv",
+  "download_manifest_csv": "data/candidates/datav2_abo_dedup_probe_download_manifest.csv",
+  "summary_md": "outputs/phase2l/abo_dedup_acquisition/dedup_summary.md",
+  "summary_json": "outputs/phase2l/abo_dedup_acquisition/dedup_summary.json",
+  "raw_asset_dir": "data/raw_assets/abo",
+  "dedupe": {
+    "extent_round_digits": 2,
+    "ratio_round_digits": 2,
+    "face_bucket_size": 5000,
+    "texture_bucket_size": 1,
+    "material_bucket_size": 1,
+    "moderate_face_target": 25000
+  }
+}

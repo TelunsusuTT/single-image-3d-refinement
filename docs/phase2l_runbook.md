@@ -171,3 +171,43 @@ python scripts/datav2_make_abo_probe_human_review_template.py \
 Decision rule: if 8-12 acceptable assets are found, keep ABO as part of Data
 v2. If fewer are found, prioritize Objaverse or Objaverse-XL metadata
 acquisition.
+
+## Phase 2L.2B ABO Deduped Acquisition Prep
+
+Phase 2L.2B deduplicates the ABO geometry-ranked candidates before any GLB
+download. It uses rounded extents, flatness/aspect ratios, face buckets, and
+texture/material counts to avoid spending the probe on near-identical shapes.
+Do not download assets, run Blender, run Hunyuan, submit Slurm jobs, train, or
+load checkpoints in Codex.
+
+Run static checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q tests/test_datav2_abo_dedup_acquisition.py
+```
+
+Create the deduplicated candidate set and summary:
+
+```bash
+python scripts/datav2_dedupe_abo_probe_candidates.py \
+  --config configs/datav2_abo_dedup_acquisition.json
+```
+
+Create the download-ready manifest without downloading:
+
+```bash
+python scripts/datav2_make_abo_dedup_download_manifest.py \
+  --config configs/datav2_abo_dedup_acquisition.json
+```
+
+Inspect before any acquisition:
+
+```bash
+head -n 31 data/candidates/datav2_abo_dedup_probe_candidates.csv
+head -n 31 data/candidates/datav2_abo_dedup_probe_download_manifest.csv
+less outputs/phase2l/abo_dedup_acquisition/dedup_summary.md
+```
+
+The manifest is download-ready, but download still requires explicit user
+approval and should happen manually outside Codex automation.
