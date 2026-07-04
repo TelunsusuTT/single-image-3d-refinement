@@ -1,0 +1,300 @@
+{
+  "split_name": "mini40",
+  "random_seed": 260704,
+  "counts": {
+    "train": 32,
+    "val": 4,
+    "test": 4
+  },
+  "split_group_keys": [
+    "bbox=0.6,0.0,0.6|face_bin=0|aspect=1.0"
+  ],
+  "splits": {
+    "train": [
+      {
+        "item_id": "B073P1H6KJ",
+        "group_key": "bbox=0.3,0.0,0.4|face_bin=0|aspect=1.4",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/J/B073P1H6KJ.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_007.jpg"
+      },
+      {
+        "item_id": "B075YLQTNP",
+        "group_key": "bbox=0.3,0.0,0.4|face_bin=0|aspect=1.2",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/P/B075YLQTNP.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_001.jpg"
+      },
+      {
+        "item_id": "B075YLXSJC",
+        "group_key": "bbox=0.3,0.0,0.4|face_bin=0|aspect=1.2",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/C/B075YLXSJC.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_003.jpg"
+      },
+      {
+        "item_id": "B075YLQTJ3",
+        "group_key": "bbox=0.3,0.0,0.4|face_bin=0|aspect=1.2",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/3/B075YLQTJ3.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_003.jpg"
+      },
+      {
+        "item_id": "B075YM2VXJ",
+        "group_key": "bbox=0.3,0.0,0.4|face_bin=0|aspect=1.2",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/J/B075YM2VXJ.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_002.jpg"
+      },
+      {
+        "item_id": "B073P6TCQL",
+        "group_key": "bbox=0.8,0.1,1.0|face_bin=0|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/L/B073P6TCQL.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_007.jpg"
+      },
+      {
+        "item_id": "B075YNL7DH",
+        "group_key": "bbox=0.4,0.0,0.7|face_bin=0|aspect=1.8",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/H/B075YNL7DH.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_005.jpg"
+      },
+      {
+        "item_id": "B075YLTF8J",
+        "group_key": "bbox=0.4,0.0,0.7|face_bin=0|aspect=1.8",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/J/B075YLTF8J.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_008.jpg"
+      },
+      {
+        "item_id": "B075YLKFB6",
+        "group_key": "bbox=0.3,0.0,0.3|face_bin=0|aspect=1.0",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/6/B075YLKFB6.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_002.jpg"
+      },
+      {
+        "item_id": "B073P5QJ5T",
+        "group_key": "bbox=0.3,0.0,0.3|face_bin=0|aspect=1.0",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/T/B073P5QJ5T.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_004.jpg"
+      },
+      {
+        "item_id": "B073P5KN5N",
+        "group_key": "bbox=0.3,0.0,0.3|face_bin=0|aspect=1.0",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/N/B073P5KN5N.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_003.jpg"
+      },
+      {
+        "item_id": "B073P77B6B",
+        "group_key": "bbox=0.4,0.0,0.5|face_bin=0|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/B/B073P77B6B.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_002.jpg"
+      },
+      {
+        "item_id": "B073P1WWTL",
+        "group_key": "bbox=0.8,0.1,1.0|face_bin=0|aspect=1.2",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/L/B073P1WWTL.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_001.jpg"
+      },
+      {
+        "item_id": "B07HSLQY59",
+        "group_key": "bbox=1.0,0.0,1.0|face_bin=0|aspect=1.0",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/9/B07HSLQY59.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_008.jpg"
+      },
+      {
+        "item_id": "B07HSKKXT2",
+        "group_key": "bbox=1.0,0.0,1.0|face_bin=0|aspect=1.0",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/2/B07HSKKXT2.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_006.jpg"
+      },
+      {
+        "item_id": "B073P5LN67",
+        "group_key": "bbox=1.0,0.0,1.0|face_bin=0|aspect=1.0",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/7/B073P5LN67.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_006.jpg"
+      },
+      {
+        "item_id": "B073P1GGSL",
+        "group_key": "bbox=0.4,0.0,0.3|face_bin=0|aspect=1.1",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/L/B073P1GGSL.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_001.jpg"
+      },
+      {
+        "item_id": "B07W5BDJ73",
+        "group_key": "bbox=0.2,0.0,0.2|face_bin=25|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/3/B07W5BDJ73.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_001.jpg"
+      },
+      {
+        "item_id": "B075YNHLD5",
+        "group_key": "bbox=0.9,0.0,0.6|face_bin=0|aspect=1.5",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/5/B075YNHLD5.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_005.jpg"
+      },
+      {
+        "item_id": "B073P1H61D",
+        "group_key": "bbox=0.9,0.0,0.6|face_bin=0|aspect=1.5",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/D/B073P1H61D.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_003.jpg"
+      },
+      {
+        "item_id": "B073P1BVTF",
+        "group_key": "bbox=0.9,0.0,0.6|face_bin=0|aspect=1.5",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/F/B073P1BVTF.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_006.jpg"
+      },
+      {
+        "item_id": "B075YLG1B5",
+        "group_key": "bbox=1.1,0.0,0.8|face_bin=0|aspect=1.4",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/5/B075YLG1B5.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_006.jpg"
+      },
+      {
+        "item_id": "B073P1N3BY",
+        "group_key": "bbox=0.4,0.0,0.6|face_bin=2|aspect=1.5",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/Y/B073P1N3BY.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_004.jpg"
+      },
+      {
+        "item_id": "B079LNFJQX",
+        "group_key": "bbox=0.2,0.0,0.2|face_bin=16|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/X/B079LNFJQX.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_001.jpg"
+      },
+      {
+        "item_id": "B079L8TCVJ",
+        "group_key": "bbox=0.2,0.0,0.2|face_bin=16|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/J/B079L8TCVJ.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_001.jpg"
+      },
+      {
+        "item_id": "B07HSMVFLG",
+        "group_key": "bbox=0.8,0.0,1.0|face_bin=0|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/G/B07HSMVFLG.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_007.jpg"
+      },
+      {
+        "item_id": "B07HSGKLJL",
+        "group_key": "bbox=0.8,0.0,1.0|face_bin=0|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/L/B07HSGKLJL.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_006.jpg"
+      },
+      {
+        "item_id": "B073NZWZ9W",
+        "group_key": "bbox=0.8,0.0,1.0|face_bin=0|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/W/B073NZWZ9W.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_007.jpg"
+      },
+      {
+        "item_id": "B07661HPJP",
+        "group_key": "bbox=0.8,0.0,1.0|face_bin=0|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/P/B07661HPJP.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_006.jpg"
+      },
+      {
+        "item_id": "B073P1GB8K",
+        "group_key": "bbox=1.5,0.1,0.5|face_bin=3|aspect=3.0",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/K/B073P1GB8K.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_005.jpg"
+      },
+      {
+        "item_id": "B073P5RRF9",
+        "group_key": "bbox=1.2,0.0,1.1|face_bin=0|aspect=1.1",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/9/B073P5RRF9.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_006.jpg"
+      },
+      {
+        "item_id": "B075HRC94H",
+        "group_key": "bbox=0.6,0.0,0.6|face_bin=0|aspect=1.0",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/H/B075HRC94H.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_005.jpg"
+      }
+    ],
+    "val": [
+      {
+        "item_id": "B073P1H786",
+        "group_key": "bbox=1.1,0.0,0.8|face_bin=0|aspect=1.5",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/6/B073P1H786.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_003.jpg"
+      },
+      {
+        "item_id": "B073P1N45L",
+        "group_key": "bbox=1.1,0.0,0.8|face_bin=0|aspect=1.5",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/L/B073P1N45L.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_008.jpg"
+      },
+      {
+        "item_id": "B073P14BDC",
+        "group_key": "bbox=0.8,0.0,0.6|face_bin=0|aspect=1.5",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/C/B073P14BDC.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_008.jpg"
+      },
+      {
+        "item_id": "B073P1GFXV",
+        "group_key": "bbox=0.6,0.0,0.6|face_bin=0|aspect=1.0",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/V/B073P1GFXV.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_001.jpg"
+      }
+    ],
+    "test": [
+      {
+        "item_id": "B075YNL763",
+        "group_key": "bbox=0.5,0.0,0.6|face_bin=0|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/3/B075YNL763.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_008.jpg"
+      },
+      {
+        "item_id": "B077X6WSH1",
+        "group_key": "bbox=0.5,0.0,0.6|face_bin=0|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/1/B077X6WSH1.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_009.jpg"
+      },
+      {
+        "item_id": "B075YM2V3Y",
+        "group_key": "bbox=1.0,0.1,1.2|face_bin=3|aspect=1.3",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/Y/B075YM2V3Y.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_007.jpg"
+      },
+      {
+        "item_id": "B073P1BVBS",
+        "group_key": "bbox=0.6,0.0,0.6|face_bin=4|aspect=1.0",
+        "local_glb_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/raw_assets/abo/S/B073P1BVBS.glb",
+        "selected_input_view": "005",
+        "contact_sheet_path": "/vol/bitbucket/ct1022/hy3dpaint_finetune/outputs/phase2l/manual_abo_visual_inspection/contact_sheets/contact_sheet_006.jpg"
+      }
+    ]
+  }
+}

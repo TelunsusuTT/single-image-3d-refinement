@@ -41,6 +41,9 @@ Status labels:
 | `datav2_make_manual_abo_review_template.py` | Create curation template from manual ABO manifest | manual ABO download manifest | human-review CSV | No | No | reuse | Use after resolving manual IDs; does not auto-accept candidates. |
 | `datav2_make_manual_abo_contact_sheets.py` | Create contact sheets from manual ABO Blender preview renders | manual ABO visual config, inspection CSV, six-view PNGs | contact sheet JPG pages and index MD | No | No | reuse | Use after manual ABO Blender renders exist; imports Pillow only at runtime. |
 | `datav2_update_manual_abo_review_with_inspection.py` | Merge manual ABO manifest/review with inspection results | manual ABO visual config, manifest, review CSV, inspection CSV | inspection-enriched review CSV | No | No | reuse | Preferred before human curation of manual ABO set. |
+| `datav2_build_frame_panel_curated_manifest.py` | Build curated Data v2 framed-panel manifest | frame-panel split config, manual review-with-inspection CSV, optional reject IDs | curated manifest CSV/JSON and summary JSON/MD | No | No | reuse | Use after manual ABO visual QA before any training-example rendering. |
+| `datav2_make_frame_panel_splits.py` | Create fixed-seed group-aware mini40/full101 splits | frame-panel split config, curated manifest | split JSONs, membership CSV, summary JSON/MD | No | No | reuse | Avoids original manual list order and reduces near-duplicate leakage. |
+| `datav2_export_frame_panel_training_plan.py` | Export Data v2 frame-panel training plan | frame-panel split config and split files | training plan Markdown | No | No | reuse | Planning only; do not submit training from this script. |
 | `datav2_prepare_abo_probe_manifest.py` | Prepare top-k ABO probe availability manifest | ABO geometry candidate CSV, probe config | probe manifest CSV, availability JSON/MD | No | No | reuse | Use before any Phase 2L.2A download or visual inspection. |
 | `datav2_make_abo_download_plan.py` | Create non-executing download plan for missing ABO probe assets | probe manifest CSV | safe shell plan | No | No | reuse | Emits commented download commands only; does not download. |
 | `datav2_make_abo_probe_human_review_template.py` | Create curation template from probe manifest and optional inspection CSV | probe manifest, optional inspection CSV | human-review CSV | No | No | reuse | Works before Blender inspection; human review remains required. |
@@ -179,6 +182,11 @@ Status labels:
 - Manual ABO visual inspection: run `datav2_inspect_manual_abo_blender.py`
   manually in Blender, then use `datav2_make_manual_abo_contact_sheets.py` and
   `datav2_update_manual_abo_review_with_inspection.py` before curation.
+- Data v2 framed-panel curation/splits: use
+  `datav2_build_frame_panel_curated_manifest.py`,
+  `datav2_make_frame_panel_splits.py`, and
+  `datav2_export_frame_panel_training_plan.py`; do not use original manual
+  item-id order for train/test splits.
 - ABO visual probe setup: use `datav2_prepare_abo_probe_manifest.py`,
   `datav2_make_abo_download_plan.py`,
   `datav2_inspect_abo_probe_blender.py`, and

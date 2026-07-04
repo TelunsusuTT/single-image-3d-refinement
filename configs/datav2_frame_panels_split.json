@@ -1,0 +1,26 @@
+{
+  "input_review_csv": "data/candidates/datav2_manual_abo_human_review_with_inspection.csv",
+  "optional_reject_ids": "data/candidates/datav2_manual_abo_reject_item_ids.txt",
+  "output_dir": "data/manifests/datav2_frame_panels",
+  "report_dir": "outputs/phase2l/datav2_frame_panels",
+  "dataset_name": "datav2_frame_panels",
+  "default_subclass": "framed_wall_art",
+  "default_selected_input_view": "005",
+  "default_alternative_input_view": "004",
+  "default_primary_eval_views": [
+    "004",
+    "005"
+  ],
+  "random_seed": 260704,
+  "mini_split": {
+    "total": 40,
+    "train": 32,
+    "val": 4,
+    "test": 4
+  },
+  "full_split": {
+    "train": 80,
+    "val": 10,
+    "test": 11
+  }
+}

@@ -236,6 +236,58 @@ Human curation should fill accept/reject decisions, `selected_input_view`,
 Data v2A training subset should use 30-40 high-quality accepted assets; do not
 train on the full 101-asset set until QA supports a larger split.
 
+## Phase 2L.2C Data v2 Frame-Panel Curation and Splits
+
+Phase 2L.2C creates a curated manifest and reproducible train/validation/test
+splits for the manually inspected framed-wall-art assets. Do not run Hunyuan,
+Blender, A100 jobs, training, Slurm, package installs, or checkpoint loads.
+
+Run static checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q \
+  tests/test_datav2_frame_panel_curated_manifest.py \
+  tests/test_datav2_frame_panel_splits.py
+```
+
+Optionally create a reject list before building the manifest:
+
+```text
+data/candidates/datav2_manual_abo_reject_item_ids.txt
+```
+
+Build the curated manifest:
+
+```bash
+python scripts/datav2_build_frame_panel_curated_manifest.py \
+  --config configs/datav2_frame_panels_split.json
+```
+
+Generate fixed-seed mini40 and full101 splits:
+
+```bash
+python scripts/datav2_make_frame_panel_splits.py \
+  --config configs/datav2_frame_panels_split.json
+```
+
+Inspect the split summary:
+
+```bash
+less outputs/phase2l/datav2_frame_panels/split_summary.md
+head -n 20 data/manifests/datav2_frame_panels/datav2_frame_panels_split_membership.csv
+```
+
+Export the training plan:
+
+```bash
+python scripts/datav2_export_frame_panel_training_plan.py \
+  --config configs/datav2_frame_panels_split.json
+```
+
+Do not train yet. The next phase is Hunyuan train-example rendering for the
+curated mini40 split, followed by local structure and framing QA.
+
 ## Phase 2L.2A ABO Probe Inspection Setup
 
 Phase 2L.2A checks whether the top ABO geometry candidates are visually useful
