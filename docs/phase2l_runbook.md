@@ -63,3 +63,55 @@ requested.
 Human review decides final membership. Do not treat rank alone as acceptance.
 Later curation must fill `selected_input_view`, `primary_eval_views`, rejection
 reasons, and notes before download, inspection, contact sheets, or training.
+
+## Phase 2L.1B ABO Geometry Candidate Refinement
+
+Phase 2L.1B is still metadata-only. It ranks ABO asset-level rows from
+`data/metadata/abo/3dmodels.csv.gz` using flatness, panel aspect ratio,
+texture/material counts, mesh count, face count, and image-resolution signals.
+Do not download assets in this phase.
+
+Run static checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q \
+  tests/test_datav2_abo_geometry_candidates.py \
+  tests/test_datav2_abo_geometry_review_template.py
+```
+
+Run geometry mining as a dry run first:
+
+```bash
+python scripts/datav2_mine_abo_geometry_candidates.py \
+  --config configs/datav2_flat_panel_candidate_mining.json \
+  --dry-run \
+  --top-k 300
+```
+
+Run full geometry candidate mining only after the dry run looks sensible:
+
+```bash
+python scripts/datav2_mine_abo_geometry_candidates.py \
+  --config configs/datav2_flat_panel_candidate_mining.json \
+  --top-k 300
+```
+
+Generate the human-review template:
+
+```bash
+python scripts/datav2_make_abo_geometry_review_template.py \
+  --candidates-csv data/candidates/datav2_abo_geometry_flat_panel_candidates.csv \
+  --out-csv data/candidates/datav2_abo_geometry_human_review_template.csv \
+  --top-k 120
+```
+
+Inspect the top 40 rows before any download:
+
+```bash
+head -n 41 data/candidates/datav2_abo_geometry_flat_panel_candidates.csv
+```
+
+`images.csv.gz` is auxiliary metadata only. Do not treat image rows as asset
+candidates. Candidate rank is not acceptance; human review still decides
+accepted/rejected rows and must fill `selected_input_view` before later phases.

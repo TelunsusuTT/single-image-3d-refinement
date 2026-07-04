@@ -34,6 +34,8 @@ Status labels:
 | `datav2_inventory_metadata_sources.py` | Inventory local ABO/Objaverse metadata files | Data v2 mining config | metadata report JSON/MD | No | No | reuse | Phase 2L.1 metadata-first entry point; run before mining candidates. |
 | `datav2_mine_flat_panel_candidates.py` | Normalize and rank flat-panel metadata candidates | Data v2 mining config, local metadata | ranked candidate CSV/MD and summary JSON | No | No | reuse | Preferred Data v2A candidate miner; use `--dry-run` before writing outputs. |
 | `datav2_make_human_review_template.py` | Create curation template from ranked candidates | ranked candidate CSV | human-review CSV | No | No | reuse | Use after mining; does not auto-accept candidates. |
+| `datav2_mine_abo_geometry_candidates.py` | Rank ABO flat-panel candidates from asset geometry | Data v2 mining config, ABO `3dmodels.csv.gz` | geometry candidate CSV/MD and summary JSON | No | No | reuse | Preferred when ABO semantic title/category fields are unavailable; does not score `images.csv.gz` as candidates. |
+| `datav2_make_abo_geometry_review_template.py` | Create curation template from ABO geometry candidates | ABO geometry candidate CSV | human-review CSV | No | No | reuse | Use after geometry mining; does not auto-accept candidates. |
 
 ## Asset Download and Inspection
 
@@ -152,7 +154,6 @@ Status labels:
   `datav2_mine_flat_panel_candidates.py`, and
   `datav2_make_human_review_template.py`; do not download assets during
   Phase 2L.1A.
-- Data v2 metadata mining: use ,
-  , and
-  ; do not download assets during
-  Phase 2L.1A.
+- ABO geometry metadata mining: use `datav2_mine_abo_geometry_candidates.py`
+  and `datav2_make_abo_geometry_review_template.py` when local ABO metadata has
+  geometry fields but no useful semantic titles/tags.

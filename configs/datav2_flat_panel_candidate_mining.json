@@ -100,5 +100,35 @@
     "objaverse": 0.8,
     "objaverse_xl": 0.8,
     "unknown": 0.2
+  },
+  "abo_geometry_scoring": {
+    "enabled": true,
+    "candidate_source_files": [
+      "data/metadata/abo/3dmodels.csv.gz"
+    ],
+    "auxiliary_source_files": [
+      "data/metadata/abo/images.csv.gz"
+    ],
+    "min_textures": 1,
+    "min_materials": 1,
+    "max_meshes": 3,
+    "min_faces": 500,
+    "max_faces": 150000,
+    "flatness_good_threshold": 0.12,
+    "flatness_ok_threshold": 0.2,
+    "aspect_min": 0.6,
+    "aspect_max": 3.5,
+    "thin_rod_penalty_aspect": 5.0,
+    "weights": {
+      "flatness_score": 4.0,
+      "rectangular_aspect_score": 3.0,
+      "texture_score": 2.0,
+      "material_score": 1.5,
+      "mesh_count_score": 1.0,
+      "face_count_score": 1.0,
+      "image_resolution_score": 0.5,
+      "semantic_keyword_score": 1.0,
+      "negative_keyword_penalty": 2.0
+    }
   }
 }
