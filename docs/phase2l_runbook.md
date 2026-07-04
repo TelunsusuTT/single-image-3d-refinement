@@ -288,6 +288,66 @@ python scripts/datav2_export_frame_panel_training_plan.py \
 Do not train yet. The next phase is Hunyuan train-example rendering for the
 curated mini40 split, followed by local structure and framing QA.
 
+## Phase 2L.3A Render Mini40 Hunyuan Examples
+
+Phase 2L.3A renders only the `datav2_frame_panels` mini40 split into official
+Hunyuan3D-Paint-style training examples. Do not run Hunyuan, A100 jobs,
+training, Slurm, package installs, or checkpoint loads. Blender commands are
+manual user actions, not Codex actions.
+
+Run static checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q \
+  tests/test_datav2_frame_panel_render_plan.py \
+  tests/test_datav2_frame_panel_examples_json.py \
+  tests/test_datav2_frame_panel_examples_checker.py
+```
+
+Build the render plan:
+
+```bash
+python scripts/datav2_build_frame_panel_render_plan.py \
+  --config configs/datav2_frame_panels_mini40_render.json
+```
+
+Run a local Blender smoke render with three assets:
+
+```bash
+/vol/bitbucket/ct1022/tools/bin/blender -b \
+  --python scripts/datav2_render_frame_panel_examples_blender.py -- \
+  --config configs/datav2_frame_panels_mini40_render.json \
+  --limit 3
+```
+
+Build examples JSON files from successful render results:
+
+```bash
+python scripts/datav2_build_frame_panel_examples_json.py \
+  --config configs/datav2_frame_panels_mini40_render.json
+```
+
+Run the local rendered-example checker:
+
+```bash
+python scripts/check_datav2_frame_panel_examples.py \
+  --config configs/datav2_frame_panels_mini40_render.json
+```
+
+If the smoke passes, run the full local Blender render:
+
+```bash
+/vol/bitbucket/ct1022/tools/bin/blender -b \
+  --python scripts/datav2_render_frame_panel_examples_blender.py -- \
+  --config configs/datav2_frame_panels_mini40_render.json \
+  --only-missing
+```
+
+Then rebuild examples JSON and run the checker again. Do not start A100
+training yet; the next phase should run strict example validation and prepare
+the mini40 training sbatch.
+
 ## Phase 2L.2A ABO Probe Inspection Setup
 
 Phase 2L.2A checks whether the top ABO geometry candidates are visually useful

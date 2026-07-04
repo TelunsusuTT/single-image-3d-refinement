@@ -44,6 +44,9 @@ Status labels:
 | `datav2_build_frame_panel_curated_manifest.py` | Build curated Data v2 framed-panel manifest | frame-panel split config, manual review-with-inspection CSV, optional reject IDs | curated manifest CSV/JSON and summary JSON/MD | No | No | reuse | Use after manual ABO visual QA before any training-example rendering. |
 | `datav2_make_frame_panel_splits.py` | Create fixed-seed group-aware mini40/full101 splits | frame-panel split config, curated manifest | split JSONs, membership CSV, summary JSON/MD | No | No | reuse | Avoids original manual list order and reduces near-duplicate leakage. |
 | `datav2_export_frame_panel_training_plan.py` | Export Data v2 frame-panel training plan | frame-panel split config and split files | training plan Markdown | No | No | reuse | Planning only; do not submit training from this script. |
+| `datav2_build_frame_panel_render_plan.py` | Build mini40 Hunyuan-example render plan | frame-panel render config, curated manifest, mini40 split | render plan CSV and summary JSON/MD | No | No | reuse | Run before Blender rendering; validates local GLB paths. |
+| `datav2_build_frame_panel_examples_json.py` | Build train/val/test/all examples JSON files | frame-panel render config, render results CSV | absolute examples JSON files | No | No | reuse | Use after successful mini40 rendering. |
+| `check_datav2_frame_panel_examples.py` | Check rendered mini40 Hunyuan examples | frame-panel render config, examples JSONs, sample dirs | check summary JSON/MD | No | No | reuse | Use before strict checker or A100 training prep. |
 | `datav2_prepare_abo_probe_manifest.py` | Prepare top-k ABO probe availability manifest | ABO geometry candidate CSV, probe config | probe manifest CSV, availability JSON/MD | No | No | reuse | Use before any Phase 2L.2A download or visual inspection. |
 | `datav2_make_abo_download_plan.py` | Create non-executing download plan for missing ABO probe assets | probe manifest CSV | safe shell plan | No | No | reuse | Emits commented download commands only; does not download. |
 | `datav2_make_abo_probe_human_review_template.py` | Create curation template from probe manifest and optional inspection CSV | probe manifest, optional inspection CSV | human-review CSV | No | No | reuse | Works before Blender inspection; human review remains required. |
@@ -73,6 +76,7 @@ Status labels:
 | Script | Purpose | Inputs | Outputs | A100 | Blender | Status | Reuse notes |
 |---|---|---|---|---|---|---|
 | `blender_render_hy3dpaint_example.py` | Render GLB into Hunyuan-style train sample | GLB, sample name, output root | `render_tex`, `render_cond`, transforms, QA sidecars | No | Yes | reuse | Preferred training-example renderer; reuses normalized orthographic framing. |
+| `datav2_render_frame_panel_examples_blender.py` | Batch-render mini40 frame-panel GLBs into Hunyuan examples | frame-panel render config, render plan CSV | mini40 train examples, render results JSON/MD/CSV | No | Yes | runtime | Blender-only wrapper around `blender_render_hy3dpaint_example.py`; not run in Codex. |
 | `make_phase2c_render_manifest.py` | Build batch-render manifest from passed inspections | download manifest, inspection summary | render manifest CSV | No | No | reuse | Use for pilot-style render batches. |
 | `make_phase2c_render_commands.py` | Generate Blender commands for batch rendering | render manifest | shell script | No | No | reuse | Generates but does not run Blender. |
 | `make_phase2c_examples_json.py` | Create examples JSON from render manifest | render manifest | JSON list | No | No | reuse | Use for relative or absolute examples JSON. |
@@ -187,6 +191,11 @@ Status labels:
   `datav2_make_frame_panel_splits.py`, and
   `datav2_export_frame_panel_training_plan.py`; do not use original manual
   item-id order for train/test splits.
+- Data v2 mini40 Hunyuan rendering: use
+  `datav2_build_frame_panel_render_plan.py`,
+  manually run `datav2_render_frame_panel_examples_blender.py`, then use
+  `datav2_build_frame_panel_examples_json.py` and
+  `check_datav2_frame_panel_examples.py` before any A100 training prep.
 - ABO visual probe setup: use `datav2_prepare_abo_probe_manifest.py`,
   `datav2_make_abo_download_plan.py`,
   `datav2_inspect_abo_probe_blender.py`, and
