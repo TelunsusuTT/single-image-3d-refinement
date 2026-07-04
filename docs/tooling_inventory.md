@@ -36,6 +36,9 @@ Status labels:
 | `datav2_make_human_review_template.py` | Create curation template from ranked candidates | ranked candidate CSV | human-review CSV | No | No | reuse | Use after mining; does not auto-accept candidates. |
 | `datav2_mine_abo_geometry_candidates.py` | Rank ABO flat-panel candidates from asset geometry | Data v2 mining config, ABO `3dmodels.csv.gz` | geometry candidate CSV/MD and summary JSON | No | No | reuse | Preferred when ABO semantic title/category fields are unavailable; does not score `images.csv.gz` as candidates. |
 | `datav2_make_abo_geometry_review_template.py` | Create curation template from ABO geometry candidates | ABO geometry candidate CSV | human-review CSV | No | No | reuse | Use after geometry mining; does not auto-accept candidates. |
+| `datav2_prepare_abo_probe_manifest.py` | Prepare top-k ABO probe availability manifest | ABO geometry candidate CSV, probe config | probe manifest CSV, availability JSON/MD | No | No | reuse | Use before any Phase 2L.2A download or visual inspection. |
+| `datav2_make_abo_download_plan.py` | Create non-executing download plan for missing ABO probe assets | probe manifest CSV | safe shell plan | No | No | reuse | Emits commented download commands only; does not download. |
+| `datav2_make_abo_probe_human_review_template.py` | Create curation template from probe manifest and optional inspection CSV | probe manifest, optional inspection CSV | human-review CSV | No | No | reuse | Works before Blender inspection; human review remains required. |
 
 ## Asset Download and Inspection
 
@@ -47,6 +50,7 @@ Status labels:
 | `download_phase2b_assets.py` | Download selected GLBs from manifest | manifest CSV | local GLBs | No | No | runtime | Network script; do not run by default. |
 | `check_phase2b_local_assets.py` | Check selected Phase 2B GLBs exist | manifest CSV | stdout pass/fail | No | No | reuse | Use before Blender inspection. |
 | `blender_inspect_glb.py` | Blender import/UV/material/texture inspection | GLB | inspection JSON/MD | No | Yes | runtime | Run manually with Blender only when requested. |
+| `datav2_inspect_abo_probe_blender.py` | Blender inspect/render contact sheets for local ABO probe GLBs | probe manifest | inspection CSV/JSON/MD and contact sheets | No | Yes | runtime | Manual Blender-only Phase 2L.2A visual probe; not run in Codex. |
 | `check_asset_inspection_report.py` | Validate inspection JSON without Blender | inspection JSON | pass/fail | No | No | reuse | Use after Blender inspection. |
 | `summarize_phase2b_inspections.py` | Join inspection reports with manifest | inspection root, manifest | CSV/MD summary | No | No | reuse | Preferred gate before rendering. |
 
@@ -157,3 +161,8 @@ Status labels:
 - ABO geometry metadata mining: use `datav2_mine_abo_geometry_candidates.py`
   and `datav2_make_abo_geometry_review_template.py` when local ABO metadata has
   geometry fields but no useful semantic titles/tags.
+- ABO visual probe setup: use `datav2_prepare_abo_probe_manifest.py`,
+  `datav2_make_abo_download_plan.py`,
+  `datav2_inspect_abo_probe_blender.py`, and
+  `datav2_make_abo_probe_human_review_template.py`; do not download assets or
+  run Blender in Codex.
