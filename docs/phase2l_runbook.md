@@ -406,6 +406,101 @@ source path, or checkpoint configuration before submitting. If training fails,
 review the Slurm log and do not proceed to full101 or comparison runs until the
 mini40 checkpoint behavior is understood.
 
+## Phase 2L.5A Mini40 True-PBR Evaluation Setup
+
+Phase 2L.5A evaluates the mini40 true-PBR checkpoint with explicit per-asset
+selected input views. Do not run Hunyuan, submit Slurm, run Blender, train,
+load checkpoints in Codex, install packages, or compare against old wrong-input
+baselines.
+
+Run static checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q \
+  tests/test_datav2_frame_mini40_input_view_review.py \
+  tests/test_datav2_frame_mini40_eval_cases.py \
+  tests/test_datav2_frame_mini40_eval_readiness.py \
+  tests/test_datav2_frame_mini40_eval_aggregate.py
+```
+
+Generate the input-view review board and default override CSV:
+
+```bash
+python scripts/make_datav2_frame_mini40_input_view_review.py \
+  --config configs/datav2_frame_mini40_eval.json
+```
+
+Review:
+
+```text
+outputs/phase2l/datav2_frame_panels/mini40_eval_truepbr500/input_view_review/input_view_review_board.jpg
+data/manifests/datav2_frame_panels/datav2_frame_mini40_eval_input_view_overrides.csv
+```
+
+The user should confirm or edit `selected_input_view` for each val/test asset,
+normally choosing `004` or `005`. The override CSV is the explicit human-review
+artifact; do not silently hard-code a view.
+
+Create eval cases after the override CSV is reviewed:
+
+```bash
+python scripts/make_datav2_frame_mini40_eval_cases.py \
+  --config configs/datav2_frame_mini40_eval.json
+```
+
+Run readiness:
+
+```bash
+python scripts/check_datav2_frame_mini40_eval_readiness.py \
+  --config configs/datav2_frame_mini40_eval.json
+```
+
+Expected marker:
+
+```text
+PHASE2L5A_MINI40_EVAL_READINESS_OK
+```
+
+Static-check the sbatch before submission:
+
+```bash
+bash -n env/run_datav2_frame_mini40_eval_infer_a100.sbatch
+```
+
+Commit the setup only if desired, then submit the A100 inference job manually
+after readiness is OK:
+
+```bash
+sbatch env/run_datav2_frame_mini40_eval_infer_a100.sbatch
+```
+
+The job writes corrected-input base and fine-tuned outputs under:
+
+```text
+outputs/phase2l/datav2_frame_panels/mini40_eval_truepbr500/infer/base/<split>/<item_id>/
+outputs/phase2l/datav2_frame_panels/mini40_eval_truepbr500/infer/finetuned/<split>/<item_id>/
+```
+
+After inference, create a render-eval config:
+
+```bash
+python scripts/make_datav2_frame_mini40_render_eval_configs.py \
+  --config configs/datav2_frame_mini40_eval.json
+```
+
+Run the existing rendered-view evaluation path locally/manual as appropriate,
+then aggregate:
+
+```bash
+python scripts/aggregate_datav2_frame_mini40_eval.py \
+  --config configs/datav2_frame_mini40_eval.json
+```
+
+Inspect metrics and boards before making any quality claim. Do not run full101
+or full80 until the mini40 val/test and train-sanity results have been
+interpreted.
+
 ## Phase 2L.2A ABO Probe Inspection Setup
 
 Phase 2L.2A checks whether the top ABO geometry candidates are visually useful

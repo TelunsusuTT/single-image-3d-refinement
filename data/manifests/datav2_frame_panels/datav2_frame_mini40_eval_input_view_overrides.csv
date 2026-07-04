@@ -1,0 +1,11 @@
+item_id,source_split,eval_split,selected_input_view,alternative_input_view,primary_eval_views,review_status,notes
+B073P1H786,val,val,005,004,004;005,approved_005,manual confirmed: 005 is usable front/oblique-front input
+B073P1N45L,val,val,005,004,004;005,approved_005,manual confirmed: 005 is usable front/oblique-front input
+B073P14BDC,val,val,005,004,004;005,approved_005,manual confirmed: 005 is usable front/oblique-front input
+B073P1GFXV,val,val,005,004,004;005,approved_005,manual confirmed: 005 is usable front/oblique-front input
+B075YNL763,test,test,005,004,004;005,approved_005,manual confirmed: 005 is usable front/oblique-front input
+B077X6WSH1,test,test,005,004,004;005,approved_005,manual confirmed: 005 is usable front/oblique-front input
+B075YM2V3Y,test,test,005,004,004;005,approved_005,manual confirmed: 005 is usable front/oblique-front input
+B073P1BVBS,test,test,005,004,004;005,approved_005,manual confirmed: 005 is usable front/oblique-front input
+B073P1H6KJ,train,train_sanity,005,004,004;005,approved_005,manual confirmed: 005 is usable front/oblique-front input
+B075YLQTNP,train,train_sanity,005,004,004;005,approved_005,manual confirmed: 005 is usable front/oblique-front input

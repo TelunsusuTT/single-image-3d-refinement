@@ -150,6 +150,11 @@ Status labels:
 | `prepare_phase2k4_reference_view_cases.py` | Prepare input-view case dirs | ablation config | case dirs for each asset/view | No | No | reuse | Reuse for input-view ablation case prep. |
 | `make_phase2k4_render_eval_configs.py` | Generate rendered-eval configs for ablations | ablation config | config JSON per input view | No | No | reuse | Bridges inference outputs to Phase 2K.3 renderer. |
 | `aggregate_phase2k4_reference_view_ablation.py` | Compare baseline/input_004/input_005 summaries | ablation config | JSON/MD ablation summary | No | No | reuse | Preferred for input-view ablation interpretation. |
+| `make_datav2_frame_mini40_input_view_review.py` | Build mini40 selected-input-view review board and override CSV | mini40 eval config, rendered examples | review board, override CSV, JSON/MD summary | No | No | reuse | Run before A100 inference so per-asset input views are human-reviewed. |
+| `make_datav2_frame_mini40_eval_cases.py` | Create mini40 eval cases with explicit selected input views | mini40 eval config, split/curation/override CSVs | eval cases JSON/MD/summary and case input symlinks | No | No | reuse | Uses override CSV first, curated manifest second, config default last. |
+| `check_datav2_frame_mini40_eval_readiness.py` | Check mini40 corrected-input eval readiness | mini40 eval config and eval cases | readiness JSON/MD/stdout | No | No | reuse | Gate before Phase 2L.5A A100 inference. |
+| `make_datav2_frame_mini40_render_eval_configs.py` | Create render-eval config for mini40 base/fine outputs | mini40 eval config and eval cases | render eval cases JSON | No | No | reuse | Produces a Phase 2K.3-compatible config after inference outputs exist. |
+| `aggregate_datav2_frame_mini40_eval.py` | Aggregate mini40 rendered-view metrics by split/view group | mini40 eval config and rendered metrics | summary JSON/MD | No | No | reuse | Separates all, input, front, non-front, val/test, and train-sanity metrics. |
 
 ## Shell Helpers
 
@@ -203,6 +208,14 @@ Status labels:
   `env/run_datav2_frame_mini40_train_a100.sbatch`, and
   `inspect_datav2_frame_mini40_checkpoint.py`; do not start full101 training
   until the mini40 run and checkpoint are reviewed.
+- Data v2 mini40 corrected-input evaluation: run
+  `make_datav2_frame_mini40_input_view_review.py` first, have the user review
+  the override CSV, then use `make_datav2_frame_mini40_eval_cases.py`,
+  `check_datav2_frame_mini40_eval_readiness.py`,
+  `env/run_datav2_frame_mini40_eval_infer_a100.sbatch`,
+  `make_datav2_frame_mini40_render_eval_configs.py`, and
+  `aggregate_datav2_frame_mini40_eval.py`; never compare against old
+  wrong-input baselines.
 - ABO visual probe setup: use `datav2_prepare_abo_probe_manifest.py`,
   `datav2_make_abo_download_plan.py`,
   `datav2_inspect_abo_probe_blender.py`, and
