@@ -176,6 +176,66 @@ python scripts/datav2_make_manual_abo_review_template.py \
 Later Blender contact sheets should be used to decide whether each asset is a
 flat rectangular graphic panel and to fill `selected_input_view`.
 
+## Phase 2L.2B Manual ABO Visual Inspection
+
+Phase 2L.2B visually inspects the manually downloaded ABO GLBs. Codex may
+create or check scripts, but Blender should be run manually by the user. Do not
+run Hunyuan, A100 jobs, training, Slurm, package installs, or checkpoint loads.
+
+Run static checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q \
+  tests/test_datav2_manual_abo_contact_sheet_index.py \
+  tests/test_datav2_manual_abo_review_merge.py
+```
+
+Run a local Blender smoke with five assets:
+
+```bash
+/vol/bitbucket/ct1022/tools/bin/blender -b \
+  --python scripts/datav2_inspect_manual_abo_blender.py -- \
+  --config configs/datav2_manual_abo_visual_inspection.json \
+  --limit 5
+```
+
+Generate contact sheets for the smoke outputs:
+
+```bash
+python scripts/datav2_make_manual_abo_contact_sheets.py \
+  --config configs/datav2_manual_abo_visual_inspection.json
+```
+
+If the smoke looks correct, run the full local Blender inspection:
+
+```bash
+/vol/bitbucket/ct1022/tools/bin/blender -b \
+  --python scripts/datav2_inspect_manual_abo_blender.py -- \
+  --config configs/datav2_manual_abo_visual_inspection.json \
+  --only-missing
+```
+
+Regenerate the full contact sheets:
+
+```bash
+python scripts/datav2_make_manual_abo_contact_sheets.py \
+  --config configs/datav2_manual_abo_visual_inspection.json
+```
+
+Create the inspection-enriched review CSV:
+
+```bash
+python scripts/datav2_update_manual_abo_review_with_inspection.py \
+  --config configs/datav2_manual_abo_visual_inspection.json \
+  --out-csv data/candidates/datav2_manual_abo_human_review_with_inspection.csv
+```
+
+Human curation should fill accept/reject decisions, `selected_input_view`,
+`alternative_input_view`, quality scores, leakage risk, and notes. The first
+Data v2A training subset should use 30-40 high-quality accepted assets; do not
+train on the full 101-asset set until QA supports a larger split.
+
 ## Phase 2L.2A ABO Probe Inspection Setup
 
 Phase 2L.2A checks whether the top ABO geometry candidates are visually useful

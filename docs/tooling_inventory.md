@@ -39,6 +39,8 @@ Status labels:
 | `datav2_resolve_manual_abo_item_ids.py` | Resolve manually selected ABO item IDs against local 3D metadata | item-id text file, ABO `3dmodels.csv.gz` | download manifest CSV, JSON/MD resolution summary | No | No | reuse | Use when web-page semantic review identifies promising ABO IDs; missing IDs do not get URLs. |
 | `datav2_download_manual_abo_glbs.py` | Optionally download manually resolved ABO GLBs | manual ABO download manifest | local GLBs, JSON/MD download summary | No | No | runtime | Network script; always dry-run first and do not run in Codex unless explicitly requested. |
 | `datav2_make_manual_abo_review_template.py` | Create curation template from manual ABO manifest | manual ABO download manifest | human-review CSV | No | No | reuse | Use after resolving manual IDs; does not auto-accept candidates. |
+| `datav2_make_manual_abo_contact_sheets.py` | Create contact sheets from manual ABO Blender preview renders | manual ABO visual config, inspection CSV, six-view PNGs | contact sheet JPG pages and index MD | No | No | reuse | Use after manual ABO Blender renders exist; imports Pillow only at runtime. |
+| `datav2_update_manual_abo_review_with_inspection.py` | Merge manual ABO manifest/review with inspection results | manual ABO visual config, manifest, review CSV, inspection CSV | inspection-enriched review CSV | No | No | reuse | Preferred before human curation of manual ABO set. |
 | `datav2_prepare_abo_probe_manifest.py` | Prepare top-k ABO probe availability manifest | ABO geometry candidate CSV, probe config | probe manifest CSV, availability JSON/MD | No | No | reuse | Use before any Phase 2L.2A download or visual inspection. |
 | `datav2_make_abo_download_plan.py` | Create non-executing download plan for missing ABO probe assets | probe manifest CSV | safe shell plan | No | No | reuse | Emits commented download commands only; does not download. |
 | `datav2_make_abo_probe_human_review_template.py` | Create curation template from probe manifest and optional inspection CSV | probe manifest, optional inspection CSV | human-review CSV | No | No | reuse | Works before Blender inspection; human review remains required. |
@@ -59,6 +61,7 @@ Status labels:
 | `blender_inspect_glb.py` | Blender import/UV/material/texture inspection | GLB | inspection JSON/MD | No | Yes | runtime | Run manually with Blender only when requested. |
 | `datav2_inspect_abo_probe_blender.py` | Blender inspect/render contact sheets for local ABO probe GLBs | probe manifest | inspection CSV/JSON/MD and contact sheets | No | Yes | runtime | Manual Blender-only Phase 2L.2A visual probe; not run in Codex. |
 | `datav2_inspect_abo_dedup_blender.py` | Blender inspect/render six fixed views for downloaded ABO dedup GLBs | visual inspection config | inspection CSV/JSON/MD and rendered PNGs | No | Yes | runtime | Manual Blender-only Phase 2L.2C visual inspection; not run in Codex. |
+| `datav2_inspect_manual_abo_blender.py` | Blender inspect/render six fixed views for manually selected ABO GLBs | manual ABO visual config | inspection CSV/JSON/MD and rendered PNGs | No | Yes | runtime | Manual Blender-only Phase 2L.2B visual inspection; supports limit/start/only-missing. |
 | `check_asset_inspection_report.py` | Validate inspection JSON without Blender | inspection JSON | pass/fail | No | No | reuse | Use after Blender inspection. |
 | `summarize_phase2b_inspections.py` | Join inspection reports with manifest | inspection root, manifest | CSV/MD summary | No | No | reuse | Preferred gate before rendering. |
 
@@ -173,6 +176,9 @@ Status labels:
   dry-run `datav2_download_manual_abo_glbs.py`, and
   `datav2_make_manual_abo_review_template.py` when the user has manually
   collected promising ABO IDs from product-page inspection.
+- Manual ABO visual inspection: run `datav2_inspect_manual_abo_blender.py`
+  manually in Blender, then use `datav2_make_manual_abo_contact_sheets.py` and
+  `datav2_update_manual_abo_review_with_inspection.py` before curation.
 - ABO visual probe setup: use `datav2_prepare_abo_probe_manifest.py`,
   `datav2_make_abo_download_plan.py`,
   `datav2_inspect_abo_probe_blender.py`, and
