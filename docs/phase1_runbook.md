@@ -1201,3 +1201,55 @@ Compare the multi-case true-PBR 200-step metrics against the 50-step result and
 old collapsed-checkpoint metrics. Treat this as diagnostic evidence, not a final
 quality claim.
 
+## Phase 2K.3 Rendered-View Evaluation
+
+Phase 2K.3 evaluates the true-PBR 200-step checkpoint in rendered-view space.
+It renders base and fine-tuned GLBs from fixed views, compares both against each
+other and the `render_cond` reference views, then aggregates multi-dimensional
+image metrics. Do not make a final quality claim without visual review of the
+boards.
+
+Run local safe checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q tests/test_phase2k3_render_eval_readiness.py tests/test_phase2k3_rendered_metrics_aggregate.py
+```
+
+Run readiness:
+
+```bash
+python scripts/check_phase2k3_render_eval_readiness.py --cases-config configs/phase2k3_rendered_view_eval_cases.json --output-root outputs/phase2k/rendered_view_eval_truepbr200
+```
+
+Static-check the sbatch:
+
+```bash
+bash -n env/run_phase2k3_rendered_view_eval_a100.sbatch
+```
+
+Commit the setup before running the job, then submit manually:
+
+```bash
+sbatch env/run_phase2k3_rendered_view_eval_a100.sbatch
+```
+
+Inspect per-case boards and reports:
+
+```bash
+for asset_id in B075YLTF7Q B07HSK7MXZ B073NZS57V B07B8MWCR8; do
+  ls -lh outputs/phase2k/rendered_view_eval_truepbr200/boards/$asset_id/rendered_view_board.jpg
+  sed -n '1,220p' outputs/phase2k/rendered_view_eval_truepbr200/reports/$asset_id/rendered_view_report.md
+done
+```
+
+Inspect the aggregate summary:
+
+```bash
+sed -n '1,260p' outputs/phase2k/rendered_view_eval_truepbr200/summary/rendered_view_metrics_summary.md
+```
+
+This phase is diagnostic. Use the rendered boards, per-view metrics, and summary
+metrics together before deciding whether the 200-step checkpoint is visually
+better than base.
+
