@@ -31,6 +31,9 @@ Status labels:
 | `download_abo_candidate_thumbnails.py` | Download selected thumbnails | candidate CSV | local thumbnails, failures CSV | No | No | runtime | Network script; thumbnail URL should use `images/small`. |
 | `make_candidate_gallery.py` | Build HTML gallery for review | candidate CSV, thumbnails | gallery HTML | No | No | reuse | Human review entry point. |
 | `mark_phase2a_candidates.py` | Mark selected/rejected candidates | candidate CSV | updated selection CSV | No | No | legacy | Reuse if its CSV schema matches; otherwise prefer a new CSV transform. |
+| `datav2_inventory_metadata_sources.py` | Inventory local ABO/Objaverse metadata files | Data v2 mining config | metadata report JSON/MD | No | No | reuse | Phase 2L.1 metadata-first entry point; run before mining candidates. |
+| `datav2_mine_flat_panel_candidates.py` | Normalize and rank flat-panel metadata candidates | Data v2 mining config, local metadata | ranked candidate CSV/MD and summary JSON | No | No | reuse | Preferred Data v2A candidate miner; use `--dry-run` before writing outputs. |
+| `datav2_make_human_review_template.py` | Create curation template from ranked candidates | ranked candidate CSV | human-review CSV | No | No | reuse | Use after mining; does not auto-accept candidates. |
 
 ## Asset Download and Inspection
 
@@ -145,3 +148,11 @@ Status labels:
   `aggregate_phase2k3_rendered_metrics.py`.
 - Training initialization changes: use the Phase 2I/2J inspection and
   comparison tools before adding any new training configs.
+- Data v2 metadata mining: use `datav2_inventory_metadata_sources.py`,
+  `datav2_mine_flat_panel_candidates.py`, and
+  `datav2_make_human_review_template.py`; do not download assets during
+  Phase 2L.1A.
+- Data v2 metadata mining: use ,
+  , and
+  ; do not download assets during
+  Phase 2L.1A.
