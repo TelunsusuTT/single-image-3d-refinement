@@ -211,3 +211,46 @@ less outputs/phase2l/abo_dedup_acquisition/dedup_summary.md
 
 The manifest is download-ready, but download still requires explicit user
 approval and should happen manually outside Codex automation.
+
+## Phase 2L.2C ABO Visual Inspection
+
+Phase 2L.2C inspects the 30 downloaded deduped ABO GLBs and builds six-view
+contact sheets for human curation. Do not run Blender, Hunyuan, Slurm, training,
+package installs, or checkpoint loading in Codex.
+
+Run static checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q \
+  tests/test_datav2_abo_visual_human_review.py \
+  tests/test_datav2_abo_contact_sheet_inputs.py
+```
+
+Run Blender manually when ready:
+
+```bash
+/vol/bitbucket/ct1022/tools/bin/blender -b \
+  --python scripts/datav2_inspect_abo_dedup_blender.py -- \
+  --config configs/datav2_abo_visual_inspection.json
+```
+
+Build contact sheets after renders exist:
+
+```bash
+python scripts/datav2_make_abo_visual_contact_sheets.py \
+  --config configs/datav2_abo_visual_inspection.json
+```
+
+Create the human-review CSV. This works before inspection, but it is most useful
+after contact sheets exist:
+
+```bash
+python scripts/datav2_make_abo_visual_human_review.py \
+  --config configs/datav2_abo_visual_inspection.json
+```
+
+Accept only clear flat rectangular graphic panels with readable or meaningful
+front texture. Reject plain, broken, not-panel-like, cluttered, bad-import, or
+weak-texture assets. If at least 8-12 are acceptable, keep ABO as a Data v2
+seed; otherwise prioritize Objaverse or Objaverse-XL metadata acquisition.

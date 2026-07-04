@@ -1,0 +1,24 @@
+{
+  "input_manifest": "data/candidates/datav2_abo_dedup_probe_download_manifest.csv",
+  "output_root": "outputs/phase2l/abo_visual_inspection",
+  "render_root": "outputs/phase2l/abo_visual_inspection/renders",
+  "contact_sheet_root": "outputs/phase2l/abo_visual_inspection/contact_sheets",
+  "inspection_csv": "outputs/phase2l/abo_visual_inspection/inspection_results.csv",
+  "inspection_summary_md": "outputs/phase2l/abo_visual_inspection/inspection_summary.md",
+  "inspection_summary_json": "outputs/phase2l/abo_visual_inspection/inspection_summary.json",
+  "human_review_csv": "data/candidates/datav2_abo_visual_human_review.csv",
+  "render_resolution": 512,
+  "view_ids": [
+    "000",
+    "001",
+    "002",
+    "003",
+    "004",
+    "005"
+  ],
+  "preferred_input_views": [
+    "004",
+    "005"
+  ],
+  "blender_bin": "/vol/bitbucket/ct1022/tools/bin/blender"
+}

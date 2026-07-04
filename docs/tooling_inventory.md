@@ -41,6 +41,8 @@ Status labels:
 | `datav2_make_abo_probe_human_review_template.py` | Create curation template from probe manifest and optional inspection CSV | probe manifest, optional inspection CSV | human-review CSV | No | No | reuse | Works before Blender inspection; human review remains required. |
 | `datav2_dedupe_abo_probe_candidates.py` | Deduplicate ABO geometry candidates for acquisition | dedup config, geometry candidate CSV | dedup candidate CSV, JSON/MD summary | No | No | reuse | Use before downloading top ABO probe assets to avoid near-duplicates. |
 | `datav2_make_abo_dedup_download_manifest.py` | Convert deduped ABO candidates into download-ready manifest | dedup config, dedup candidate CSV | download manifest CSV | No | No | reuse | Download-ready only; does not download. |
+| `datav2_make_abo_visual_contact_sheets.py` | Build paginated contact sheets from rendered ABO visual thumbnails | visual inspection config, inspection CSV, rendered PNGs | contact sheet JPG pages and index MD | No | No | reuse | Imports Pillow only after validating expected renders exist. |
+| `datav2_make_abo_visual_human_review.py` | Create Data v2 visual curation CSV for ABO candidates | visual inspection config, manifest, optional inspection CSV | human-review CSV | No | No | reuse | Works before Blender inspection; does not auto-accept candidates. |
 
 ## Asset Download and Inspection
 
@@ -53,6 +55,7 @@ Status labels:
 | `check_phase2b_local_assets.py` | Check selected Phase 2B GLBs exist | manifest CSV | stdout pass/fail | No | No | reuse | Use before Blender inspection. |
 | `blender_inspect_glb.py` | Blender import/UV/material/texture inspection | GLB | inspection JSON/MD | No | Yes | runtime | Run manually with Blender only when requested. |
 | `datav2_inspect_abo_probe_blender.py` | Blender inspect/render contact sheets for local ABO probe GLBs | probe manifest | inspection CSV/JSON/MD and contact sheets | No | Yes | runtime | Manual Blender-only Phase 2L.2A visual probe; not run in Codex. |
+| `datav2_inspect_abo_dedup_blender.py` | Blender inspect/render six fixed views for downloaded ABO dedup GLBs | visual inspection config | inspection CSV/JSON/MD and rendered PNGs | No | Yes | runtime | Manual Blender-only Phase 2L.2C visual inspection; not run in Codex. |
 | `check_asset_inspection_report.py` | Validate inspection JSON without Blender | inspection JSON | pass/fail | No | No | reuse | Use after Blender inspection. |
 | `summarize_phase2b_inspections.py` | Join inspection reports with manifest | inspection root, manifest | CSV/MD summary | No | No | reuse | Preferred gate before rendering. |
 
@@ -170,3 +173,7 @@ Status labels:
   run Blender in Codex.
 - ABO dedup acquisition prep: use `datav2_dedupe_abo_probe_candidates.py` and
   `datav2_make_abo_dedup_download_manifest.py` before downloading probe GLBs.
+- ABO visual inspection: use `datav2_inspect_abo_dedup_blender.py`,
+  `datav2_make_abo_visual_contact_sheets.py`, and
+  `datav2_make_abo_visual_human_review.py` after downloaded GLBs exist; do not
+  run Blender in Codex.
