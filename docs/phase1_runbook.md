@@ -1253,3 +1253,61 @@ This phase is diagnostic. Use the rendered boards, per-view metrics, and summary
 metrics together before deciding whether the 200-step checkpoint is visually
 better than base.
 
+## Phase 2K.4 Reference-View Ablation
+
+Phase 2K.4 tests user-confirmed front/informative views `004` and `005` as
+Hunyuan input images for all four pilot assets. Do not rerun input view `001` in
+this phase; existing Phase 2K.3 rendered-view results are the previous-current-
+input baseline.
+
+Run local safe checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q \
+  tests/test_phase2k4_reference_view_ablation_readiness.py \
+  tests/test_phase2k4_render_eval_config_generation.py \
+  tests/test_phase2k4_reference_view_aggregate.py
+```
+
+Run readiness:
+
+```bash
+python scripts/check_phase2k4_reference_view_ablation_readiness.py --cases-config configs/phase2k4_reference_view_ablation_cases.json --hypaint /vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint
+```
+
+Prepare case directories:
+
+```bash
+python scripts/prepare_phase2k4_reference_view_cases.py --cases-config configs/phase2k4_reference_view_ablation_cases.json
+```
+
+Static-check the A100 inference sbatch:
+
+```bash
+bash -n env/run_phase2k4_reference_view_infer_a100.sbatch
+```
+
+Commit the setup before running the job, then submit manually:
+
+```bash
+sbatch env/run_phase2k4_reference_view_infer_a100.sbatch
+```
+
+After A100 inference finishes, generate render-eval configs:
+
+```bash
+python scripts/make_phase2k4_render_eval_configs.py --cases-config configs/phase2k4_reference_view_ablation_cases.json
+```
+
+Run Blender rendered-view evaluation locally on gpu12 with the existing Phase 2K.3
+scripts for both generated configs, then aggregate Phase 2K.4:
+
+```bash
+python scripts/aggregate_phase2k4_reference_view_ablation.py --cases-config configs/phase2k4_reference_view_ablation_cases.json
+```
+
+Use the summary to decide whether front input-view selection or model/data
+fidelity is the likely bottleneck. Do not make a final quality claim without
+visual review of the rendered boards.
+

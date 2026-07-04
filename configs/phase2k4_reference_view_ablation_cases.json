@@ -1,0 +1,38 @@
+{
+  "checkpoint": "checkpoints/pilot_v1_truepbr_200_lr1e6/pilot_v1_truepbr_200_lr1e6-stepstep=200.ckpt",
+  "output_root": "outputs/phase2k/reference_view_ablation_truepbr200",
+  "asset_ids": [
+    "B075YLTF7Q",
+    "B07HSK7MXZ",
+    "B073NZS57V",
+    "B07B8MWCR8"
+  ],
+  "input_views": [
+    "004",
+    "005"
+  ],
+  "primary_eval_views": [
+    "004",
+    "005"
+  ],
+  "previous_baseline_render_eval_root": "outputs/phase2k/rendered_view_eval_truepbr200",
+  "human_annotation": "Views 004 and 005 are human-confirmed front/informative views for all four pilot assets.",
+  "assets": {
+    "B075YLTF7Q": {
+      "mesh_path": "outputs/phase2g/infer_cases/B075YLTF7Q/input/mesh.glb",
+      "reference_image_path_template": "data/hy3dpaint_train_examples/pilot_v1/B075YLTF7Q/render_cond/{view_id}_light_AL.png"
+    },
+    "B07HSK7MXZ": {
+      "mesh_path": "outputs/phase2k/multicase_truepbr200/cases/B07HSK7MXZ/input/mesh.glb",
+      "reference_image_path_template": "data/hy3dpaint_train_examples/pilot_v1/B07HSK7MXZ/render_cond/{view_id}_light_AL.png"
+    },
+    "B073NZS57V": {
+      "mesh_path": "outputs/phase2k/multicase_truepbr200/cases/B073NZS57V/input/mesh.glb",
+      "reference_image_path_template": "data/hy3dpaint_train_examples/pilot_v1/B073NZS57V/render_cond/{view_id}_light_AL.png"
+    },
+    "B07B8MWCR8": {
+      "mesh_path": "outputs/phase2k/multicase_truepbr200/cases/B07B8MWCR8/input/mesh.glb",
+      "reference_image_path_template": "data/hy3dpaint_train_examples/pilot_v1/B07B8MWCR8/render_cond/{view_id}_light_AL.png"
+    }
+  }
+}
