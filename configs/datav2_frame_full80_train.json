@@ -1,0 +1,32 @@
+{
+  "experiment_name": "datav2_frame_full80_truepbr_500_lr1e6",
+  "dataset_name": "datav2_frame_panels_full101",
+  "training_yaml": "configs/ft_datav2_frame_full80_truepbr_500_lr1e6.yaml",
+  "train_examples_json": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/hy3dpaint_train_examples/datav2_frame_panels_full101/examples_train_abs.json",
+  "val_examples_json": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/hy3dpaint_train_examples/datav2_frame_panels_full101/examples_val_abs.json",
+  "test_examples_json": "/vol/bitbucket/ct1022/hy3dpaint_finetune/data/hy3dpaint_train_examples/datav2_frame_panels_full101/examples_test_abs.json",
+  "split_file": "data/manifests/datav2_frame_panels/datav2_frame_panels_full101_split.json",
+  "split_membership_csv": "data/manifests/datav2_frame_panels/datav2_frame_panels_split_membership.csv",
+  "train_count_expected": 80,
+  "val_count_expected": 10,
+  "test_count_expected": 11,
+  "steps": 500,
+  "learning_rate": "1e-6",
+  "num_view": 6,
+  "view_size": 512,
+  "batch_size": 1,
+  "output_checkpoint_dir": "checkpoints/datav2_frame_full80_truepbr_500_lr1e6",
+  "official_pbr_source_dir": "/vol/bitbucket/ct1022/hy3dpaint_finetune/caches/hf/hub/models--tencent--Hunyuan3D-2.1/snapshots/0b94677654c57bb9a6b6845cd7b704ccf551d327/hunyuan3d-paintpbr-v2-1",
+  "readiness_report_dir": "outputs/phase2l/datav2_frame_panels/full80_train_readiness",
+  "forbidden_checkpoint_markers": [
+    "pilot_v1_overfit_500",
+    "pilot_v1_conservative_50_lr1e6",
+    "sd2-community"
+  ],
+  "allow_existing_checkpoints": false,
+  "selected_input_view_default": "005",
+  "primary_eval_views": [
+    "004",
+    "005"
+  ]
+}

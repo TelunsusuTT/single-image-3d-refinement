@@ -95,6 +95,8 @@ Status labels:
 | `check_phase2k1_truepbr200_readiness.py` | Check true-PBR 200-step train-eval readiness | examples/config/case/base/eval paths | stdout preflight | No | No | reuse | Preferred pattern for combined train-eval gates. |
 | `check_datav2_frame_mini40_training_readiness.py` | Check Data v2 mini40 true-PBR training readiness | mini40 training JSON config | stdout, readiness JSON/MD | No | No | reuse | Preferred static gate before the Phase 2L.4A mini40 A100 sbatch. |
 | `inspect_datav2_frame_mini40_checkpoint.py` | Stat-only mini40 checkpoint inspection | mini40 training JSON config | checkpoint inspection JSON/MD | No | No | reuse | Use after Phase 2L.4A training to verify a step-500 checkpoint exists without loading it. |
+| `check_datav2_frame_full80_training_readiness.py` | Check full80 true-PBR 500-step training readiness | full80 training JSON config | stdout, readiness JSON/MD | No | No | reuse | Preferred static gate before the Phase 2L.6B full80 A100 sbatch; validates split counts 80/10/11 and true-PBR YAML text. |
+| `inspect_datav2_frame_full80_checkpoint.py` | Stat-only full80 checkpoint inspection | full80 training JSON config | checkpoint inspection JSON/MD | No | No | reuse | Use after Phase 2L.6B training to verify exactly one step-500 checkpoint exists without loading it. |
 
 ## Hunyuan Inference and Checkpoint Diagnostics
 
@@ -215,6 +217,12 @@ Status labels:
   `env/run_datav2_frame_mini40_train_a100.sbatch`, and
   `inspect_datav2_frame_mini40_checkpoint.py`; do not start full101 training
   until the mini40 run and checkpoint are reviewed.
+- Data v2 full80 true-PBR training prep: use
+  `check_datav2_frame_full80_training_readiness.py`,
+  `env/run_datav2_frame_full80_train_a100.sbatch`, and
+  `inspect_datav2_frame_full80_checkpoint.py`; this is the preferred scale-up
+  after full101 rendering and mini40 rendered-view review, and it should remain
+  a 500-step run until the resulting checkpoint is evaluated.
 - Data v2 mini40 corrected-input evaluation: run
   `make_datav2_frame_mini40_input_view_review.py` first, have the user review
   the override CSV, then use `make_datav2_frame_mini40_eval_cases.py`,

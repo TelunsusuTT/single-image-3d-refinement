@@ -643,6 +643,78 @@ Expected counts are train 80, val 10, test 11, and all 101. Do not prepare or
 submit A100 full80 training until the checker passes and the official-style
 strict checker has also passed on the full101 examples JSONs.
 
+## Phase 2L.6B Full80 True-PBR Training Setup
+
+Phase 2L.6B prepares the `datav2_frame_full80_truepbr_500_lr1e6` A100 job using
+the full101 rendered examples with an 80/10/11 train/val/test split. Codex
+should not run Hunyuan, submit Slurm, train, load checkpoints, run Blender,
+install packages, or prepare a 1000-step run in this phase.
+
+Run static checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q \
+  tests/test_datav2_frame_full80_training_readiness.py \
+  tests/test_datav2_frame_full80_checkpoint_inspection.py
+bash -n env/run_datav2_frame_full80_train_a100.sbatch
+```
+
+Run the full80 readiness gate:
+
+```bash
+python scripts/check_datav2_frame_full80_training_readiness.py \
+  --config configs/datav2_frame_full80_train.json
+```
+
+Expected marker:
+
+```text
+PHASE2L6B_FULL80_TRAINING_READINESS_OK
+```
+
+The readiness report is written under:
+
+```text
+outputs/phase2l/datav2_frame_panels/full80_train_readiness/
+```
+
+Static-check the sbatch, then submit manually only after readiness passes:
+
+```bash
+bash -n env/run_datav2_frame_full80_train_a100.sbatch
+sbatch env/run_datav2_frame_full80_train_a100.sbatch
+```
+
+The job should run official `train.py` for `max_steps: 500`, use the local
+true-PBR source directory, and save exactly one new checkpoint under:
+
+```text
+checkpoints/datav2_frame_full80_truepbr_500_lr1e6/
+```
+
+After the job finishes, inspect the checkpoint without loading it:
+
+```bash
+python scripts/inspect_datav2_frame_full80_checkpoint.py \
+  --config configs/datav2_frame_full80_train.json
+```
+
+Expected markers in the Slurm log:
+
+```text
+PHASE2L6B_FULL80_TRAINING_READINESS_OK
+CUBLAS_MATMUL_OK
+PHASE2L6B_FULL80_CHECKPOINT_INSPECTION_OK
+PHASE2L6B_FULL80_TRUEPBR_TRAIN_OK
+===== JOB END: SUCCESS =====
+```
+
+If readiness fails, fix rendered examples, counts, YAML true-PBR references, or
+checkpoint isolation before submission. If the 500-step full80 run succeeds,
+evaluate corrected-input base versus full80 fine-tuned outputs before deciding
+whether a 1000-step run is justified.
+
 ## Phase 2L.2A ABO Probe Inspection Setup
 
 Phase 2L.2A checks whether the top ABO geometry candidates are visually useful
