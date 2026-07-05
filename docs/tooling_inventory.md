@@ -44,9 +44,9 @@ Status labels:
 | `datav2_build_frame_panel_curated_manifest.py` | Build curated Data v2 framed-panel manifest | frame-panel split config, manual review-with-inspection CSV, optional reject IDs | curated manifest CSV/JSON and summary JSON/MD | No | No | reuse | Use after manual ABO visual QA before any training-example rendering. |
 | `datav2_make_frame_panel_splits.py` | Create fixed-seed group-aware mini40/full101 splits | frame-panel split config, curated manifest | split JSONs, membership CSV, summary JSON/MD | No | No | reuse | Avoids original manual list order and reduces near-duplicate leakage. |
 | `datav2_export_frame_panel_training_plan.py` | Export Data v2 frame-panel training plan | frame-panel split config and split files | training plan Markdown | No | No | reuse | Planning only; do not submit training from this script. |
-| `datav2_build_frame_panel_render_plan.py` | Build mini40 Hunyuan-example render plan | frame-panel render config, curated manifest, mini40 split | render plan CSV and summary JSON/MD | No | No | reuse | Run before Blender rendering; validates local GLB paths. |
-| `datav2_build_frame_panel_examples_json.py` | Build train/val/test/all examples JSON files | frame-panel render config, render results CSV | absolute examples JSON files | No | No | reuse | Use after successful mini40 rendering. |
-| `check_datav2_frame_panel_examples.py` | Check rendered mini40 Hunyuan examples | frame-panel render config, examples JSONs, sample dirs | check summary JSON/MD | No | No | reuse | Use before strict checker or A100 training prep. |
+| `datav2_build_frame_panel_render_plan.py` | Build Hunyuan-example render plan for frame panels | frame-panel render config, curated manifest, split file | render plan CSV and summary JSON/MD | No | No | reuse | Use for mini40 or full101 before Blender rendering; validates local GLB paths. |
+| `datav2_build_frame_panel_examples_json.py` | Build train/val/test/all examples JSON files | frame-panel render config, render results CSV | absolute examples JSON files | No | No | reuse | Use after successful mini40 or full101 rendering. |
+| `check_datav2_frame_panel_examples.py` | Check rendered frame-panel Hunyuan examples | frame-panel render config, examples JSONs, sample dirs | check summary JSON/MD | No | No | reuse | Use before strict checker or A100 training prep for mini40 or full101. |
 | `datav2_prepare_abo_probe_manifest.py` | Prepare top-k ABO probe availability manifest | ABO geometry candidate CSV, probe config | probe manifest CSV, availability JSON/MD | No | No | reuse | Use before any Phase 2L.2A download or visual inspection. |
 | `datav2_make_abo_download_plan.py` | Create non-executing download plan for missing ABO probe assets | probe manifest CSV | safe shell plan | No | No | reuse | Emits commented download commands only; does not download. |
 | `datav2_make_abo_probe_human_review_template.py` | Create curation template from probe manifest and optional inspection CSV | probe manifest, optional inspection CSV | human-review CSV | No | No | reuse | Works before Blender inspection; human review remains required. |
@@ -153,8 +153,11 @@ Status labels:
 | `make_datav2_frame_mini40_input_view_review.py` | Build mini40 selected-input-view review board and override CSV | mini40 eval config, rendered examples | review board, override CSV, JSON/MD summary | No | No | reuse | Run before A100 inference so per-asset input views are human-reviewed. |
 | `make_datav2_frame_mini40_eval_cases.py` | Create mini40 eval cases with explicit selected input views | mini40 eval config, split/curation/override CSVs | eval cases JSON/MD/summary and case input symlinks | No | No | reuse | Uses override CSV first, curated manifest second, config default last. |
 | `check_datav2_frame_mini40_eval_readiness.py` | Check mini40 corrected-input eval readiness | mini40 eval config and eval cases | readiness JSON/MD/stdout | No | No | reuse | Gate before Phase 2L.5A A100 inference. |
-| `make_datav2_frame_mini40_render_eval_configs.py` | Create render-eval config for mini40 base/fine outputs | mini40 eval config and eval cases | render eval cases JSON | No | No | reuse | Produces a Phase 2K.3-compatible config after inference outputs exist. |
-| `aggregate_datav2_frame_mini40_eval.py` | Aggregate mini40 rendered-view metrics by split/view group | mini40 eval config and rendered metrics | summary JSON/MD | No | No | reuse | Separates all, input, front, non-front, val/test, and train-sanity metrics. |
+| `make_datav2_frame_mini40_render_eval_configs.py` | Create render-eval config for mini40 base/fine outputs | mini40 eval config and eval cases | render eval cases JSON/MD | No | No | reuse | Produces split-aware Phase 2L.5B render-eval cases after inference outputs exist. |
+| `check_datav2_frame_mini40_render_eval_readiness.py` | Check mini40 rendered-view eval readiness | mini40 eval config and render eval cases | readiness JSON/MD/stdout | No | No | reuse | Gate before manual Blender rendered-view evaluation. |
+| `render_datav2_frame_mini40_eval_views_blender.py` | Render mini40 base/fine GLBs from fixed views | mini40 eval config and render eval cases | rendered PNGs and render summary | No | Yes | runtime | Blender-only; run manually, supports `--limit` and `--only-missing`. |
+| `compare_datav2_frame_mini40_rendered_views.py` | Compare mini40 rendered views against references | mini40 eval config, rendered PNGs, references | per-case metrics/reports/boards | No | No | reuse | Local rendered-view comparison using Phase 2K metric logic. |
+| `aggregate_datav2_frame_mini40_eval.py` | Aggregate mini40 rendered-view metrics by split/view group | mini40 eval config and rendered metrics | summary JSON/MD | No | No | reuse | Separates all, input 005, front, non-front, val/test, and train-sanity metrics. |
 
 ## Shell Helpers
 
@@ -203,6 +206,10 @@ Status labels:
   manually run `datav2_render_frame_panel_examples_blender.py`, then use
   `datav2_build_frame_panel_examples_json.py` and
   `check_datav2_frame_panel_examples.py` before any A100 training prep.
+- Data v2 full101 Hunyuan rendering: reuse the same frame-panel render
+  workflow with `configs/datav2_frame_panels_full101_render.json`; build the
+  render plan, manually run Blender smoke/full renders, build examples JSON,
+  and run `check_datav2_frame_panel_examples.py` before full80 training prep.
 - Data v2 mini40 true-PBR training prep: use
   `check_datav2_frame_mini40_training_readiness.py`,
   `env/run_datav2_frame_mini40_train_a100.sbatch`, and
@@ -213,7 +220,10 @@ Status labels:
   the override CSV, then use `make_datav2_frame_mini40_eval_cases.py`,
   `check_datav2_frame_mini40_eval_readiness.py`,
   `env/run_datav2_frame_mini40_eval_infer_a100.sbatch`,
-  `make_datav2_frame_mini40_render_eval_configs.py`, and
+  `make_datav2_frame_mini40_render_eval_configs.py`,
+  `check_datav2_frame_mini40_render_eval_readiness.py`, manually run
+  `render_datav2_frame_mini40_eval_views_blender.py`, compare with
+  `compare_datav2_frame_mini40_rendered_views.py`, and aggregate with
   `aggregate_datav2_frame_mini40_eval.py`; never compare against old
   wrong-input baselines.
 - ABO visual probe setup: use `datav2_prepare_abo_probe_manifest.py`,
