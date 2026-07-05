@@ -160,6 +160,14 @@ Status labels:
 | `render_datav2_frame_mini40_eval_views_blender.py` | Render mini40 base/fine GLBs from fixed views | mini40 eval config and render eval cases | rendered PNGs and render summary | No | Yes | runtime | Blender-only; run manually, supports `--limit` and `--only-missing`. |
 | `compare_datav2_frame_mini40_rendered_views.py` | Compare mini40 rendered views against references | mini40 eval config, rendered PNGs, references | per-case metrics/reports/boards | No | No | reuse | Local rendered-view comparison using Phase 2K metric logic. |
 | `aggregate_datav2_frame_mini40_eval.py` | Aggregate mini40 rendered-view metrics by split/view group | mini40 eval config and rendered metrics | summary JSON/MD | No | No | reuse | Separates all, input 005, front, non-front, val/test, and train-sanity metrics. |
+| `make_datav2_frame_full80_input_view_review.py` | Build full80 selected-input-view review board and override CSV | full80 eval config, full101 rendered examples | review board, override CSV, JSON/MD summary | No | No | reuse | Phase 2L.7A entry point; defaults to selected input view 005 and includes all val/test plus train sanity. |
+| `make_datav2_frame_full80_eval_cases.py` | Create full80 eval cases with explicit selected input views | full80 eval config, split/curation/override CSVs | eval cases JSON/MD/summary and case input symlinks | No | No | reuse | Uses override CSV first, curated manifest second, config default last; never compare to wrong-input baselines. |
+| `check_datav2_frame_full80_eval_readiness.py` | Check full80 corrected-input eval readiness | full80 eval config and eval cases | readiness JSON/MD/stdout | No | No | reuse | Gate before Phase 2L.7A A100 inference; checks expected 21 primary eval cases plus optional train sanity when configured. |
+| `make_datav2_frame_full80_render_eval_configs.py` | Create render-eval config for full80 base/fine outputs | full80 eval config and eval cases | render eval cases JSON/MD | No | No | reuse | Produces split-aware Phase 2L.7A render-eval cases after inference outputs exist. |
+| `check_datav2_frame_full80_render_eval_readiness.py` | Check full80 rendered-view eval readiness | full80 eval config and render eval cases | readiness JSON/MD/stdout | No | No | reuse | Gate before manual Blender rendered-view evaluation. |
+| `render_datav2_frame_full80_eval_views_blender.py` | Render full80 base/fine GLBs from fixed views | full80 eval config and render eval cases | rendered PNGs and render summary | No | Yes | runtime | Blender-only; run manually, supports `--limit` and `--only-missing`. |
+| `compare_datav2_frame_full80_rendered_views.py` | Compare full80 rendered views against references | full80 eval config, rendered PNGs, references | per-case metrics/reports/boards | No | No | reuse | Local rendered-view comparison using the mini40/Phase 2K metric path. |
+| `aggregate_datav2_frame_full80_eval.py` | Aggregate full80 rendered-view metrics by split/view group | full80 eval config and rendered metrics | summary JSON/MD | No | No | reuse | Separates all, input 005, front, non-front, val/test, and train-sanity metrics; mini40 summary is optional context. |
 
 ## Shell Helpers
 
@@ -234,6 +242,17 @@ Status labels:
   `compare_datav2_frame_mini40_rendered_views.py`, and aggregate with
   `aggregate_datav2_frame_mini40_eval.py`; never compare against old
   wrong-input baselines.
+- Data v2 full80 corrected-input evaluation: run
+  `make_datav2_frame_full80_input_view_review.py`, review the full80 override
+  CSV, then use `make_datav2_frame_full80_eval_cases.py`,
+  `check_datav2_frame_full80_eval_readiness.py`,
+  `env/run_datav2_frame_full80_eval_infer_a100.sbatch`,
+  `make_datav2_frame_full80_render_eval_configs.py`,
+  `check_datav2_frame_full80_render_eval_readiness.py`, manually run
+  `render_datav2_frame_full80_eval_views_blender.py`, compare with
+  `compare_datav2_frame_full80_rendered_views.py`, and aggregate with
+  `aggregate_datav2_frame_full80_eval.py`; evaluate all full101 val/test
+  assets before considering any 1000-step training.
 - ABO visual probe setup: use `datav2_prepare_abo_probe_manifest.py`,
   `datav2_make_abo_download_plan.py`,
   `datav2_inspect_abo_probe_blender.py`, and

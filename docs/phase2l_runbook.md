@@ -715,6 +715,125 @@ checkpoint isolation before submission. If the 500-step full80 run succeeds,
 evaluate corrected-input base versus full80 fine-tuned outputs before deciding
 whether a 1000-step run is justified.
 
+## Phase 2L.7A Full80 Corrected-Input Evaluation Setup
+
+Phase 2L.7A evaluates the full80 true-PBR 500-step checkpoint against corrected
+input base inference on the full101 validation and test assets. Do not run
+Hunyuan, submit Slurm, run Blender, train, install packages, load checkpoints,
+or compare against old wrong-input baselines in Codex.
+
+Run static checks:
+
+```bash
+python -m compileall scripts tests
+python -m pytest -q \
+  tests/test_datav2_frame_full80_input_view_review.py \
+  tests/test_datav2_frame_full80_eval_cases.py \
+  tests/test_datav2_frame_full80_eval_readiness.py \
+  tests/test_datav2_frame_full80_render_eval_cases.py \
+  tests/test_datav2_frame_full80_rendered_compare.py \
+  tests/test_datav2_frame_full80_eval_aggregate.py
+bash -n env/run_datav2_frame_full80_eval_infer_a100.sbatch
+```
+
+Create the input-view review board and default override CSV:
+
+```bash
+python scripts/make_datav2_frame_full80_input_view_review.py \
+  --config configs/datav2_frame_full80_eval.json
+```
+
+Review or edit:
+
+```text
+outputs/phase2l/datav2_frame_panels/full80_eval_truepbr500/input_view_review/input_view_review_board.jpg
+data/manifests/datav2_frame_panels/datav2_frame_full80_eval_input_view_overrides.csv
+```
+
+The default selected input view is `005`; use `004` only when human review says
+it is more informative for an asset. Base and fine-tuned inference must use the
+same selected input image.
+
+Generate eval cases and run readiness:
+
+```bash
+python scripts/make_datav2_frame_full80_eval_cases.py \
+  --config configs/datav2_frame_full80_eval.json
+
+python scripts/check_datav2_frame_full80_eval_readiness.py \
+  --config configs/datav2_frame_full80_eval.json
+```
+
+Expected marker:
+
+```text
+PHASE2L7A_FULL80_EVAL_READINESS_OK
+```
+
+Static-check the sbatch and submit manually only after readiness passes:
+
+```bash
+bash -n env/run_datav2_frame_full80_eval_infer_a100.sbatch
+sbatch env/run_datav2_frame_full80_eval_infer_a100.sbatch
+```
+
+The sbatch writes base/fine outputs under:
+
+```text
+outputs/phase2l/datav2_frame_panels/full80_eval_truepbr500/infer/base/<eval_split>/<item_id>/
+outputs/phase2l/datav2_frame_panels/full80_eval_truepbr500/infer/finetuned/<eval_split>/<item_id>/
+```
+
+After inference completes, create render-eval cases:
+
+```bash
+python scripts/make_datav2_frame_full80_render_eval_configs.py \
+  --config configs/datav2_frame_full80_eval.json
+```
+
+Run render-eval readiness before Blender:
+
+```bash
+python scripts/check_datav2_frame_full80_render_eval_readiness.py \
+  --config configs/datav2_frame_full80_eval.json
+```
+
+Run a manual Blender smoke with two cases:
+
+```bash
+blender -b --python scripts/render_datav2_frame_full80_eval_views_blender.py -- \
+  --config configs/datav2_frame_full80_eval.json \
+  --limit 2
+```
+
+If the smoke looks correct, render missing views for all cases manually:
+
+```bash
+blender -b --python scripts/render_datav2_frame_full80_eval_views_blender.py -- \
+  --config configs/datav2_frame_full80_eval.json \
+  --only-missing
+```
+
+Compare rendered views and aggregate:
+
+```bash
+python scripts/compare_datav2_frame_full80_rendered_views.py \
+  --config configs/datav2_frame_full80_eval.json
+
+python scripts/aggregate_datav2_frame_full80_eval.py \
+  --config configs/datav2_frame_full80_eval.json
+```
+
+Review:
+
+```text
+outputs/phase2l/datav2_frame_panels/full80_eval_truepbr500/render_eval/boards/
+outputs/phase2l/datav2_frame_panels/full80_eval_truepbr500/summary/full80_eval_summary.md
+```
+
+Do not prepare 1000-step training until the full80 500-step val/test and
+train-sanity summaries and boards are interpreted.
+
 ## Phase 2L.2A ABO Probe Inspection Setup
 
 Phase 2L.2A checks whether the top ABO geometry candidates are visually useful
