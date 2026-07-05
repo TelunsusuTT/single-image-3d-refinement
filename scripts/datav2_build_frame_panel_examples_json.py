@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build absolute examples JSON files for rendered Data v2 frame-panel mini40 examples."""
+"""Build absolute examples JSON files for rendered Data v2 frame-panel examples."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ def write_examples(config: dict[str, Any]) -> dict[str, Path]:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build examples JSON files for Data v2 frame-panel mini40.")
+    parser = argparse.ArgumentParser(description="Build examples JSON files for Data v2 frame-panel rendered examples.")
     parser.add_argument("--config", required=True, type=Path)
     return parser.parse_args(argv)
 

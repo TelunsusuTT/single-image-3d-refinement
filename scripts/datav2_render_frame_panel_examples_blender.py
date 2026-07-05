@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render mini40 frame-panel GLBs into Hunyuan3D-Paint-style examples.
+"""Render frame-panel GLBs into Hunyuan3D-Paint-style examples.
 
 Run manually with Blender:
   blender -b --python scripts/datav2_render_frame_panel_examples_blender.py -- \
@@ -153,7 +153,7 @@ def write_summary(config: dict[str, Any], rows: list[dict[str, str]]) -> None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Render Data v2 frame-panel mini40 Hunyuan examples in Blender.")
+    parser = argparse.ArgumentParser(description="Render Data v2 frame-panel Hunyuan examples in Blender.")
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--split", choices=["train", "val", "test", "all"], default="all")

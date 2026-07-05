@@ -32,7 +32,7 @@ def write_png(path: Path, width: int = 512, height: int = 512) -> None:
     path.write_bytes(data)
 
 
-def write_sample(sample_dir: Path) -> None:
+def write_sample(sample_dir: Path, size: int = 512) -> None:
     render_tex = sample_dir / "render_tex"
     render_cond = sample_dir / "render_cond"
     render_tex.mkdir(parents=True, exist_ok=True)
@@ -41,16 +41,17 @@ def write_sample(sample_dir: Path) -> None:
     for index in range(6):
         view = f"{index:03d}"
         for suffix in TEX_SUFFIXES:
-            write_png(render_tex / f"{view}{suffix}")
+            write_png(render_tex / f"{view}{suffix}", width=size, height=size)
         for suffix in COND_SUFFIXES:
-            write_png(render_cond / f"{view}{suffix}")
+            write_png(render_cond / f"{view}{suffix}", width=size, height=size)
 
 
-def write_config(root: Path) -> Path:
+def write_config(root: Path, counts: dict[str, int] | None = None, render_resolution: int = 512) -> Path:
+    counts = counts or {"train": 1, "val": 1, "test": 1}
     split_file = root / "split.json"
-    split_file.write_text(json.dumps({"counts": {"train": 1, "val": 1, "test": 1}}), encoding="utf-8")
+    split_file.write_text(json.dumps({"counts": counts}), encoding="utf-8")
     config = {
-        "dataset_name": "datav2_frame_panels_mini40",
+        "dataset_name": "datav2_frame_panels_full101",
         "split_file": str(split_file),
         "split_membership_csv": str(root / "membership.csv"),
         "curated_manifest_csv": str(root / "curated.csv"),
@@ -58,7 +59,7 @@ def write_config(root: Path) -> Path:
         "report_root": str(root / "reports"),
         "view_ids": ["000", "001", "002", "003", "004", "005"],
         "light_conditions": ["AL", "ENVMAP", "PL"],
-        "render_resolution": 512,
+        "render_resolution": render_resolution,
         "selected_input_view_field": "selected_input_view",
         "background_rgb": [71, 71, 71],
         "blender_bin_default": "/vol/bitbucket/ct1022/tools/bin/blender",
@@ -116,3 +117,32 @@ def test_examples_checker_fails_missing_expected_file() -> None:
 
         assert summary["summary"]["failure_count"] > 0
         assert any("ITEM_C" in failure for failure in summary["summary"]["failures"])
+
+
+def test_examples_checker_accepts_non_mini40_counts() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        samples = {
+            "train": [root / "dataset" / "TRAIN_A", root / "dataset" / "TRAIN_B"],
+            "val": [root / "dataset" / "VAL_A"],
+            "test": [root / "dataset" / "TEST_A"],
+        }
+        for split_samples in samples.values():
+            for sample in split_samples:
+                write_sample(sample, size=8)
+        (root / "dataset").mkdir(parents=True, exist_ok=True)
+        for split, split_samples in samples.items():
+            (root / "dataset" / f"examples_{split}_abs.json").write_text(
+                json.dumps([str(sample.resolve()) for sample in split_samples]),
+                encoding="utf-8",
+            )
+        all_samples = sorted(str(sample.resolve()) for split_samples in samples.values() for sample in split_samples)
+        (root / "dataset" / "examples_all_abs.json").write_text(json.dumps(all_samples), encoding="utf-8")
+        config = write_config(root, counts={"train": 2, "val": 1, "test": 1}, render_resolution=8)
+
+        assert check_main(["--config", str(config)]) == 0
+        summary = json.loads((root / "reports" / "check_summary.json").read_text(encoding="utf-8"))
+
+        assert summary["summary"]["sample_count"] == 4
+        assert summary["summary"]["split_summaries"]["train"]["expected_count"] == 2
+

@@ -31,7 +31,7 @@ def read_csv(path: Path) -> list[dict[str, str]]:
 
 def write_config(root: Path, split_file: Path, curated_csv: Path) -> Path:
     config = {
-        "dataset_name": "datav2_frame_panels_mini40",
+        "dataset_name": "datav2_frame_panels_full101",
         "split_file": str(split_file),
         "split_membership_csv": str(root / "membership.csv"),
         "curated_manifest_csv": str(curated_csv),
@@ -92,3 +92,50 @@ def test_render_plan_joins_split_and_curated_manifest() -> None:
         assert rows[0]["qa_dir"] == str(root / "reports" / "qa" / "ITEM_A")
         assert summary["asset_count"] == 2
         assert summary["split_counts"] == {"train": 1, "val": 1, "test": 0}
+
+
+def test_render_plan_supports_non_mini40_counts() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = Path(tmpdir)
+        items = ["TRAIN_A", "TRAIN_B", "VAL_A", "TEST_A"]
+        glbs: dict[str, Path] = {}
+        for item_id in items:
+            path = root / "raw" / f"{item_id}.glb"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"fake glb")
+            glbs[item_id] = path
+        curated_csv = root / "curated.csv"
+        write_csv(
+            curated_csv,
+            [
+                {"item_id": item_id, "local_glb_path": str(glbs[item_id]), "selected_input_view": "005"}
+                for item_id in items
+            ],
+        )
+        split_file = root / "full101_split.json"
+        split_file.write_text(
+            json.dumps(
+                {
+                    "counts": {"train": 2, "val": 1, "test": 1},
+                    "splits": {
+                        "train": [
+                            {"item_id": "TRAIN_A", "local_glb_path": str(glbs["TRAIN_A"]), "selected_input_view": "005"},
+                            {"item_id": "TRAIN_B", "local_glb_path": str(glbs["TRAIN_B"]), "selected_input_view": "005"},
+                        ],
+                        "val": [{"item_id": "VAL_A", "local_glb_path": str(glbs["VAL_A"]), "selected_input_view": "004"}],
+                        "test": [{"item_id": "TEST_A", "local_glb_path": str(glbs["TEST_A"]), "selected_input_view": "005"}],
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        config = write_config(root, split_file, curated_csv)
+
+        assert plan_main(["--config", str(config)]) == 0
+        summary = json.loads((root / "reports" / "render_plan_summary.json").read_text(encoding="utf-8"))
+        rows = read_csv(root / "reports" / "render_plan.csv")
+
+        assert summary["asset_count"] == 4
+        assert summary["split_counts"] == {"train": 2, "val": 1, "test": 1}
+        assert [row["split"] for row in rows] == ["train", "train", "val", "test"]
+

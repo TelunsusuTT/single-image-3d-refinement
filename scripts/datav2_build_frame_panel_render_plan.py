@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a deterministic mini40 render plan for Data v2 frame panels."""
+"""Build a deterministic render plan for Data v2 frame panels."""
 
 from __future__ import annotations
 
@@ -123,7 +123,7 @@ def write_reports(config: dict[str, Any], rows: list[dict[str, str]], missing: l
     summary_json.parent.mkdir(parents=True, exist_ok=True)
     summary_json.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     lines = [
-        "# Data v2 Frame Panels Mini40 Render Plan",
+        "# Data v2 Frame Panels Render Plan",
         "",
         f"dataset: `{config['dataset_name']}`",
         f"assets: `{len(rows)}`",
@@ -139,7 +139,7 @@ def write_reports(config: dict[str, Any], rows: list[dict[str, str]], missing: l
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build Data v2 frame-panel mini40 render plan.")
+    parser = argparse.ArgumentParser(description="Build Data v2 frame-panel render plan.")
     parser.add_argument("--config", required=True, type=Path)
     return parser.parse_args(argv)
 

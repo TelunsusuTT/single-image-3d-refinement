@@ -26,7 +26,7 @@ def write_results(path: Path, rows: list[dict[str, str]]) -> None:
 
 def write_config(root: Path) -> Path:
     config = {
-        "dataset_name": "datav2_frame_panels_mini40",
+        "dataset_name": "datav2_frame_panels_full101",
         "split_file": str(root / "split.json"),
         "split_membership_csv": str(root / "membership.csv"),
         "curated_manifest_csv": str(root / "curated.csv"),

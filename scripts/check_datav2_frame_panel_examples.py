@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check rendered Data v2 frame-panel mini40 examples without running Hunyuan."""
+"""Check rendered Data v2 frame-panel examples without running Hunyuan."""
 
 from __future__ import annotations
 
@@ -148,7 +148,7 @@ def write_reports(config: dict[str, Any], payload: dict[str, Any], sample_rows: 
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps({"summary": payload, "samples": sample_rows}, indent=2) + "\n", encoding="utf-8")
     lines = [
-        "# Data v2 Frame Panels Mini40 Check Summary",
+        "# Data v2 Frame Panels Check Summary",
         "",
         f"dataset: `{payload['dataset_name']}`",
         f"samples checked: `{payload['sample_count']}`",
@@ -166,7 +166,7 @@ def write_reports(config: dict[str, Any], payload: dict[str, Any], sample_rows: 
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Check Data v2 frame-panel mini40 rendered examples.")
+    parser = argparse.ArgumentParser(description="Check Data v2 frame-panel rendered examples.")
     parser.add_argument("--config", required=True, type=Path)
     return parser.parse_args(argv)
 
