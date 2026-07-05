@@ -834,6 +834,25 @@ outputs/phase2l/datav2_frame_panels/full80_eval_truepbr500/summary/full80_eval_s
 Do not prepare 1000-step training until the full80 500-step val/test and
 train-sanity summaries and boards are interpreted.
 
+## Phase 2L.7C Full80 Evaluation Closeout
+
+Phase 2L.7C is documentation-only. Do not run Hunyuan, Blender, Slurm,
+training, package installs, checkpoint loading, or file deletion.
+
+Review the closeout and report materials:
+
+```text
+docs/phase2l7c_full80_eval_closeout.md
+docs/phase2l_full80_failure_cases.md
+docs/phase2l_report_materials.md
+docs/current_project_state.md
+```
+
+The closeout records that full80-500 is stable and marginally positive in
+aggregate, but visually mixed and not strong enough to claim clear superiority
+over corrected-input base. Do not prepare full80-1000 unless the report-first
+path is set aside and an optional low-learning-rate rescue is explicitly chosen.
+
 ## Phase 2L.2A ABO Probe Inspection Setup
 
 Phase 2L.2A checks whether the top ABO geometry candidates are visually useful
