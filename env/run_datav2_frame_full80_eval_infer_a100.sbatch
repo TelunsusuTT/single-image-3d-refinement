@@ -4,8 +4,8 @@
 #SBATCH --job-name=datav2-frame-full80-eval
 #SBATCH --chdir=/vol/bitbucket/ct1022/hy3dpaint_finetune
 #SBATCH --cpus-per-task=6
-#SBATCH --mem=96G
-#SBATCH --time=12:00:00
+#SBATCH --mem=64G
+#SBATCH --time=5:00:00
 #SBATCH --output=/vol/bitbucket/ct1022/hy3dpaint_finetune/logs/slurm/datav2_frame_full80_eval_truepbr500-%j.out
 #SBATCH --error=/vol/bitbucket/ct1022/hy3dpaint_finetune/logs/slurm/datav2_frame_full80_eval_truepbr500-%j.err
 
