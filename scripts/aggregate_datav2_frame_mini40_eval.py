@@ -80,8 +80,10 @@ def view_groups(view_id: str, selected_input_view: str, front_views: set[str]) -
         groups.append("selected_input_view")
     if view_id in front_views:
         groups.append("front_views_004_005")
+        groups.append("front_views")
     if view_id in DEFAULT_NON_FRONT_VIEWS:
         groups.append("non_front_views_000_003")
+        groups.append("non_front_back_views")
     return groups
 
 
@@ -126,7 +128,15 @@ def collect_rows(config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str
 
 def aggregate(config: dict[str, Any]) -> dict[str, Any]:
     rows, errors = collect_rows(config)
-    groups = ["all_views", "input_view_005", "selected_input_view", "front_views_004_005", "non_front_views_000_003"]
+    groups = [
+        "all_views",
+        "input_view_005",
+        "selected_input_view",
+        "front_views_004_005",
+        "front_views",
+        "non_front_views_000_003",
+        "non_front_back_views",
+    ]
     by_view_group = {group: summarize_rows([row for row in rows if group in row["view_groups"]]) for group in groups}
     by_split = {split: summarize_rows([row for row in rows if row["eval_split"] == split]) for split in sorted({row["eval_split"] for row in rows})}
     val_test_rows = [row for row in rows if row["eval_split"] in {"val", "test"}]

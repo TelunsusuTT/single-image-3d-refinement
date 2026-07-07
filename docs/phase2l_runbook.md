@@ -991,3 +991,76 @@ Accept only clear flat rectangular graphic panels with readable or meaningful
 front texture. Reject plain, broken, not-panel-like, cluttered, bad-import, or
 weak-texture assets. If at least 8-12 are acceptable, keep ABO as a Data v2
 seed; otherwise prioritize Objaverse or Objaverse-XL metadata acquisition.
+
+## Phase 2M LoRA Rescue
+
+Phase 2M is a conservative LoRA rescue path after the full80-500 evaluation showed only marginal aggregate improvement and persistent front-to-back leakage. It is not a full fine-tuning run yet.
+
+Run local static checks first:
+
+```bash
+python -m compileall src scripts tests
+python -m pytest -q tests/test_phase2m_lora_targeting.py
+bash -n env/run_phase2m_lora_inventory_a100.sbatch
+bash -n env/run_phase2m_zero_lora_smoke_a100.sbatch
+```
+
+Manual A100 M0 inventory:
+
+```bash
+sbatch env/run_phase2m_lora_inventory_a100.sbatch
+```
+
+Expected success token:
+
+```text
+PHASE2M_M0_INVENTORY_OK
+```
+
+Manual A100 M1 zero-LoRA smoke, only after M0 passes:
+
+```bash
+sbatch env/run_phase2m_zero_lora_smoke_a100.sbatch
+```
+
+Expected success token:
+
+```text
+PHASE2M_M1_ZERO_LORA_SMOKE_OK
+```
+
+M1 writes the canonical summary `outputs/phase2m/zero_lora_smoke/zero_lora_smoke_summary.json`. The compatibility alias `outputs/phase2m/zero_lora_smoke/smoke_summary.json` is also accepted, but future checks should prefer the canonical filename.
+
+Check M2 readiness without training:
+
+```bash
+python scripts/check_phase2m_lora_training_ready.py --dry-run
+```
+
+The initial `ref_dino` preset targets only exact `nn.Linear` projection modules under `attn_refview` and `attn_dino`: `to_q`, `to_k`, `to_v`, and `to_out.0`. Do not target `attn_multiview`, `attn1`, `attn2`, feed-forward layers, convolutions, normalization layers, `learned_text_clip`, or DINO encoder weights until a later explicit phase.
+
+Phase 2M outputs belong under `outputs/phase2m/`. Do not merge LoRA into the base model, do not call `save_pretrained` on a full model, and do not overwrite checkpoints or upstream Hunyuan files.
+
+M2 adapter-only training preset:
+
+```bash
+python scripts/check_phase2m_lora_training_ready.py --dry-run
+bash -n env/run_phase2m_train_lora_refdino_r4_lr5e5_300_smoke_a100.sbatch
+sbatch env/run_phase2m_train_lora_refdino_r4_lr5e5_300_smoke_a100.sbatch
+```
+
+Only after the one-step smoke passes, run the 300-step job:
+
+```bash
+bash -n env/run_phase2m_train_lora_refdino_r4_lr5e5_300_a100.sbatch
+sbatch env/run_phase2m_train_lora_refdino_r4_lr5e5_300_a100.sbatch
+```
+
+Expected M2 output directory:
+
+```text
+outputs/phase2m/lora_train_refdino_r4_lr5e5_300/
+```
+
+M2 saves adapter-only files: `adapter_step_000100.pt`, `adapter_step_000200.pt`, `adapter_step_000300.pt`, `adapter_final.pt`, `adapter_config.json`, and `training_summary.json`. It must not save a `.ckpt` or full Hunyuan model.
+
