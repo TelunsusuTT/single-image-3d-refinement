@@ -2,14 +2,16 @@
 
 ## Summary
 
-The project is in Phase 2L.7C closeout after full80-500 corrected-input
-rendered-view evaluation. The technical pipeline is now working end to end:
+The project is in Phase 2N Week 1 Day 2, confirming the historical full80
+training protocol before protocol-corrected, geometry-focused selective
+fine-tuning is implemented. The technical pipeline is working end to end:
 true-PBR initialization is fixed, Data v2 frame-panel examples can be rendered
-and checked, official training runs can save checkpoints, and base versus
-fine-tuned outputs can be evaluated in rendered-view space.
+and checked, official training runs can save checkpoints, and corrected-input
+outputs can be evaluated in rendered-view space.
 
-The current decision is pending: write the report from the completed full80-500
-result, or run one optional low-learning-rate rescue only if time allows.
+Phase 2M refview+DINO LoRA is complete and negative on held-out cases. Phase 2N
+Day 1 architecture and reuse auditing is complete. No new Phase 2N training has
+started.
 
 ## Initialization Fix
 
@@ -53,6 +55,24 @@ The main observed failure mode is front-to-back leakage or backside
 contamination. This is a modeling/evaluation limitation of single-image texture
 generation, not an infrastructure failure.
 
+## Phase 2M LoRA Result
+
+The refview+DINO LoRA adapter trained and ran successfully, but all evaluated
+scales degraded held-out validation/test and front-view results compared with
+corrected-input base. It remains a documented negative baseline and is not
+selected for full evaluation expansion.
+
+## Phase 2N Status
+
+The Day 1 static audit established that full80-500 was broad partial
+fine-tuning, not a narrow selective update. `attn_multiview` projections are the
+main S1 selective candidate. S2 is not a distinct scope because no separate
+trainable normal/position projection was found. S3 remains runtime-gated.
+
+The current task is Day 2 historical protocol confirmation: learning-rate
+ground truth, actual reference-view sampling, augmentation behavior, and the
+proposed protocol-corrected replacement.
+
 ## No Full80-1000 Yet
 
 Do not prepare or run full80-1000 yet. Full80-500 is not a strong enough signal
@@ -61,11 +81,8 @@ is mixed, and visual boards still show leakage/ambiguity.
 
 ## Current Decision
 
-Recommended default path:
-
-- report-first closeout using the full80-500 result
-
-Optional path only if time allows:
-
-- one conservative low-learning-rate rescue, with success defined as clear
-  held-out front-view improvement without increased non-front contamination
+Complete the Phase 2N Week 1 protocol and runtime audits before authorizing any
+new training. The next implementation step is a project-local,
+protocol-corrected dataset path with explicit selected-view weighting and shared
+spatial augmentation; the Day 5 A100 audit must confirm the selective scope and
+learning rate before the Week 2 pilot.
