@@ -293,3 +293,21 @@ Status labels:
 | `scripts/make_phase2m_lora_multiscale_pilot_boards.py` | Create one visual board per M3B pilot case. | M3C rendered PNGs and reference images. | `outputs/phase2m/lora_multiscale_pilot_eval/boards/`. | No | No | Stable/reuse | Columns are reference, base, LoRA 0.50, LoRA 0.75, LoRA 1.00; front/input views are labeled. |
 | `env/run_phase2m_lora_multiscale_pilot_eval_a100.sbatch` | Manual A100 launcher for M3C rendered-view pilot evaluation. | M3B outputs and project env. | Rendered PNGs, metrics, boards, Slurm logs. | Yes | Yes | Ready/manual | Runs readiness, Blender render, aggregation, and board generation for three cases only. |
 
+## Phase 2N Reuse Candidates
+
+See `docs/phase2n_day1_architecture_reuse_audit.md` for the exact call chains,
+static Hunyuan architecture evidence, and candidate selective scopes.
+
+- **Direct reuse:** full80 corrected-input case creation/readiness,
+  `run_phase2g_paint_infer.py`, Phase 2K `render_variant()` and pair metrics,
+  and the mini40/full80 split and front/non-front aggregation logic.
+- **Parameterize or extend:** reuse the exact-name validation and trainable
+  safety ideas in `src/hy3dft/lora/targeting.py` for full-parameter scopes;
+  make the Phase 2M render config, aggregator, and board columns accept arbitrary
+  case counts and variant names.
+- **Historical baselines only:** keep the Phase 2M refview+DINO inventory,
+  adapter injection/IO, M2 training, and M3 inference entrypoints unchanged for
+  reproducibility. They are not Phase 2N selective full-parameter defaults.
+- **Do not reuse:** wrong-initialization Phase 2F/2H training paths, old
+  wrong-input evaluations, or broad shared `conv_in`/`conv_out`/all-UNet
+  unlocking as a substitute for a proven geometry-focused scope.
