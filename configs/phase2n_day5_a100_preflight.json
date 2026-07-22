@@ -1,0 +1,56 @@
+{
+  "phase": "phase2n_day5_a100_preflight",
+  "train_json": "data/hy3dpaint_train_examples/datav2_frame_panels_full101/examples_train_abs.json",
+  "sample_index": 0,
+  "batch_size": 1,
+  "num_workers": 0,
+  "image_size": 512,
+  "base_seed": 42,
+  "epoch": 0,
+  "augmentation_mode": "none",
+  "warmup_steps": 50,
+  "candidate_peak_learning_rates": {
+    "pc_s1": 1e-6,
+    "pc_full": 5e-7
+  },
+  "output_root": "outputs/phase2n/day5_a100_preflight",
+  "scope_order": [
+    "pc_s1",
+    "pc_full"
+  ],
+  "historical_train_config": "configs/ft_datav2_frame_full80_truepbr_500_lr1e6.yaml",
+  "official_hypaint": "/vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/hy3dpaint",
+  "expected_train_count": 80,
+  "exact_update_snapshot": {
+    "pc_s1": {
+      "mode": "all_if_cpu_memory_permits",
+      "cpu_memory_limit_bytes": 8589934592,
+      "fallback_max_tensors": 16
+    },
+    "pc_full": {
+      "mode": "deterministic_bounded",
+      "max_tensors": 16
+    }
+  },
+  "pc_s1_smoke_checkpoint": {
+    "temporary_filename": "_temporary_pc_s1_selective_checkpoint.pt",
+    "save_selected_parameters": true,
+    "save_optimizer_state": true,
+    "save_scheduler_state": true,
+    "verify_frozen_sample_count": 16,
+    "delete_binary_after_success": true
+  },
+  "gradient_clip_norm": 1.0,
+  "zero_update_tolerance": {
+    "absolute": 1e-5,
+    "relative": 1e-4
+  },
+  "update_ratio_safety_ceiling": 0.01,
+  "scheduler_evidence_steps": [
+    0,
+    25,
+    50,
+    160,
+    320
+  ]
+}
