@@ -1,0 +1,34 @@
+{
+  "phase": "phase2n_week2_pilot_training",
+  "train_json": "data/hy3dpaint_train_examples/datav2_frame_panels_full101/examples_train_abs.json",
+  "output_root": "outputs/phase2n/week2_pilot_training",
+  "base_seed": 42,
+  "schedule_seed": 42,
+  "image_size": 512,
+  "batch_size": 1,
+  "num_workers": 0,
+  "augmentation_mode": "none",
+  "max_steps": 320,
+  "warmup_steps": 50,
+  "gradient_clip_norm": 1.0,
+  "precision": "bf16",
+  "checkpoint_steps": [
+    160,
+    320
+  ],
+  "log_every_n_steps": 10,
+  "scope_order": [
+    "pc_s1",
+    "pc_full"
+  ],
+  "scopes": {
+    "pc_s1": {
+      "learning_rate": 1e-6
+    },
+    "pc_full": {
+      "learning_rate": 5e-7
+    }
+  },
+  "minimum_gpu_memory_gib": 70,
+  "minimum_free_disk_gib": 15
+}

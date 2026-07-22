@@ -2,16 +2,16 @@
 
 ## Summary
 
-The project is in Phase 2N Week 1 Day 2, confirming the historical full80
-training protocol before protocol-corrected, geometry-focused selective
-fine-tuning is implemented. The technical pipeline is working end to end:
-true-PBR initialization is fixed, Data v2 frame-panel examples can be rendered
-and checked, official training runs can save checkpoints, and corrected-input
-outputs can be evaluated in rendered-view space.
+The project is in Phase 2N Week 2 Stage 1, developing the shared deterministic
+PC-S1/PC-Full pilot runner and freezing its evaluation cases. Week 1 Days 1-5
+are complete. The Day 5 A100 runtime and numeric audits passed, and the
+controlled Week 2 pilot is authorized with reviewed learning rates and runtime
+limits.
 
 Phase 2M refview+DINO LoRA is complete and negative on held-out cases. Phase 2N
-Day 1 architecture and reuse auditing is complete. No new Phase 2N training has
-started.
+now has a protocol-corrected no-augmentation reader, exact PC-S1 and PC-Full
+scope helpers, optimizer/scheduler guards, and successful real-model Day 5
+evidence. No Week 2 training has started.
 
 ## Initialization Fix
 
@@ -64,14 +64,22 @@ selected for full evaluation expansion.
 
 ## Phase 2N Status
 
-The Day 1 static audit established that full80-500 was broad partial
-fine-tuning, not a narrow selective update. `attn_multiview` projections are the
-main S1 selective candidate. S2 is not a distinct scope because no separate
-trainable normal/position projection was found. S3 remains runtime-gated.
+Week 1 Days 1-5 are complete. The static audit established that full80-500 was
+broad partial fine-tuning, while PC-S1 isolates 80 `attn_multiview` projection
+tensors. Day 3 and Day 4 established the deterministic protocol-corrected
+reader, exact scope selection, optimizer membership, and a 50-step
+warmup-constant scheduler. Day 4B selected spatial augmentation `none` for both
+controlled pilots.
 
-The current task is Day 2 historical protocol confirmation: learning-rate
-ground truth, actual reference-view sampling, augmentation behavior, and the
-proposed protocol-corrected replacement.
+Day 5 loaded the official true-PBR base on an 80 GB A100 and passed production
+loss, gradient, update, memory, scheduler, and selective reload checks. Numeric
+review authorized PC-S1 at peak LR `1e-6` and PC-Full at peak LR `5e-7` for a
+320-update controlled pilot with checkpoints at 160 and 320.
+
+The current task is Week 2 Stage 1 local runner/readiness development. One
+shared deterministic schedule and a frozen six-validation/two-train-sanity
+evaluation pilot are being prepared before any model run. Test data remains
+excluded from training and model selection. No Week 2 training has started.
 
 ## No Full80-1000 Yet
 
@@ -81,8 +89,8 @@ is mixed, and visual boards still show leakage/ambiguity.
 
 ## Current Decision
 
-Complete the Phase 2N Week 1 protocol and runtime audits before authorizing any
-new training. The next implementation step is a project-local,
-protocol-corrected dataset path with explicit selected-view weighting and shared
-spatial augmentation; the Day 5 A100 audit must confirm the selective scope and
-learning rate before the Week 2 pilot.
+Finish and locally validate the shared Week 2 PC-S1/PC-Full runner, frozen
+evaluation manifest, and manual A100 launcher. After assistant and user review,
+the authorized pilot may run PC-S1 first and PC-Full second from fresh identical
+true-PBR bases. Do not start Week 2 training before that gate, and do not use the
+test split for selection.
