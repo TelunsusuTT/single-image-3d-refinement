@@ -35,6 +35,11 @@ SELECTIVE_SOURCE_RELATIVE = Path("src/hy3dft/selective_training.py")
 PROTOCOL_SOURCE_RELATIVE = Path("src/hy3dft/protocol_corrected_dataset.py")
 SBATCH_RELATIVE = Path("env/run_phase2n_week2_train_pilots_a100.sbatch")
 EVAL_MANIFEST_RELATIVE = Path("configs/phase2n_week2_pilot_eval_cases.json")
+AUDITED_CONDITIONING_SOURCE = Path(
+    "/vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1/"
+    "hy3dpaint/hunyuanpaintpbr/unet/model.py"
+)
+AUDITED_CONDITIONING_SOURCE_SHA256 = "5d135a73c12f0d7765366a72a37264b6bcb15da1551d3e7d60526d04b5eb1dc0"
 EXPECTED_TRAIN_JSON_RELATIVE = Path(
     "data/hy3dpaint_train_examples/datav2_frame_panels_full101/examples_train_abs.json"
 )
@@ -45,6 +50,11 @@ EXPECTED_WARMUP_STEPS = 50
 EXPECTED_CHECKPOINT_STEPS = (160, 320)
 EXPECTED_SCOPE_ORDER = ("pc_s1", "pc_full")
 EXPECTED_LEARNING_RATES = {"pc_s1": 1e-6, "pc_full": 5e-7}
+EXPECTED_CONDITIONING_DROPOUT_POLICY = {
+    "drop_cond_prob": 0.1,
+    "require_mva_active": True,
+    "maximum_seed_retries": 128,
+}
 EXPECTED_REFERENCE_WEIGHTS = {
     "005": 0.50,
     "004": 0.30,
@@ -90,6 +100,7 @@ HEAVY_IMPORT_PREFIXES = (
     "omegaconf",
 )
 READINESS_TOKEN = "PHASE2N_WEEK2_PILOT_TRAINING_READINESS_OK"
+MVA_SCHEDULE_TOKEN = "PHASE2N_WEEK2_MVA_ACTIVE_SCHEDULE_OK"
 SCOPE_SUCCESS_TOKENS = {
     "pc_s1": "PHASE2N_WEEK2_PC_S1_TRAINING_OK",
     "pc_full": "PHASE2N_WEEK2_PC_FULL_TRAINING_OK",
@@ -106,6 +117,7 @@ CONFIG_KEYS = {
     "batch_size",
     "num_workers",
     "augmentation_mode",
+    "conditioning_dropout_policy",
     "max_steps",
     "warmup_steps",
     "gradient_clip_norm",
@@ -207,6 +219,23 @@ def validate_config_values(config: Mapping[str, Any]) -> None:
     _require_exact(config, "batch_size", 1)
     _require_exact(config, "num_workers", 0)
     _require_exact(config, "augmentation_mode", "none")
+    policy = config.get("conditioning_dropout_policy")
+    if not isinstance(policy, dict) or set(policy) != set(EXPECTED_CONDITIONING_DROPOUT_POLICY):
+        raise ValueError(
+            "Config conditioning_dropout_policy must contain exactly "
+            f"{sorted(EXPECTED_CONDITIONING_DROPOUT_POLICY)}"
+        )
+    if (
+        isinstance(policy.get("drop_cond_prob"), bool)
+        or not isinstance(policy.get("drop_cond_prob"), (int, float))
+        or float(policy["drop_cond_prob"]) != 0.1
+    ):
+        raise ValueError("Config conditioning_dropout_policy.drop_cond_prob must be exactly 0.1")
+    if policy.get("require_mva_active") is not True:
+        raise ValueError("Config conditioning_dropout_policy.require_mva_active must be exactly true")
+    retries = policy.get("maximum_seed_retries")
+    if not isinstance(retries, int) or isinstance(retries, bool) or retries != 128:
+        raise ValueError("Config conditioning_dropout_policy.maximum_seed_retries must be exactly 128")
     _require_exact(config, "max_steps", EXPECTED_MAX_STEPS)
     _require_exact(config, "warmup_steps", EXPECTED_WARMUP_STEPS)
     _require_exact(config, "gradient_clip_norm", 1.0)
@@ -496,13 +525,181 @@ def _derive_uint64(payload: Mapping[str, Any]) -> int:
     return int.from_bytes(hashlib.sha256(canonical_json_bytes(payload)).digest()[:8], "big", signed=False)
 
 
+def validate_conditioning_source_audit() -> dict[str, Any]:
+    source_path = AUDITED_CONDITIONING_SOURCE.expanduser().resolve()
+    if not source_path.is_file():
+        raise FileNotFoundError(f"Audited Hunyuan conditioning source is missing: {source_path}")
+    actual_sha256 = sha256_file(source_path)
+    if actual_sha256 != AUDITED_CONDITIONING_SOURCE_SHA256:
+        raise RuntimeError(
+            "Audited Hunyuan conditioning source SHA-256 changed: "
+            f"{actual_sha256} != {AUDITED_CONDITIONING_SOURCE_SHA256}: {source_path}"
+        )
+    return {
+        "source_path": str(source_path),
+        "sha256": actual_sha256,
+        "batch_size": 1,
+        "use_dino": True,
+        "draw_order": [
+            "normal_drop_draw",
+            "position_drop_draw",
+            "dino_primary_drop_draw",
+            "dino_secondary_drop_draw",
+            "mva_ref_branch_draw",
+            "mva_ref_choice_draw_if_branch_above_one_minus_drop_prob",
+        ],
+    }
+
+
+class _NumpyMT19937:
+    """Minimal NumPy RandomState-compatible MT19937 scalar draw generator."""
+
+    _N = 624
+    _M = 397
+    _MATRIX_A = 0x9908B0DF
+    _UPPER_MASK = 0x80000000
+    _LOWER_MASK = 0x7FFFFFFF
+
+    def __init__(self, seed: int) -> None:
+        if not isinstance(seed, int) or isinstance(seed, bool) or not 0 <= seed < 2**32:
+            raise ValueError("NumPy-compatible seed must be an unsigned 32-bit integer")
+        self._state = [0] * self._N
+        self._state[0] = seed
+        for index in range(1, self._N):
+            previous = self._state[index - 1]
+            self._state[index] = (1812433253 * (previous ^ (previous >> 30)) + index) & 0xFFFFFFFF
+        self._index = self._N
+
+    def _twist(self) -> None:
+        state = self._state
+        for index in range(self._N - self._M):
+            value = (state[index] & self._UPPER_MASK) | (state[index + 1] & self._LOWER_MASK)
+            state[index] = state[index + self._M] ^ (value >> 1) ^ (self._MATRIX_A if value & 1 else 0)
+        for index in range(self._N - self._M, self._N - 1):
+            value = (state[index] & self._UPPER_MASK) | (state[index + 1] & self._LOWER_MASK)
+            state[index] = state[index + self._M - self._N] ^ (value >> 1) ^ (
+                self._MATRIX_A if value & 1 else 0
+            )
+        value = (state[-1] & self._UPPER_MASK) | (state[0] & self._LOWER_MASK)
+        state[-1] = state[self._M - 1] ^ (value >> 1) ^ (self._MATRIX_A if value & 1 else 0)
+        self._index = 0
+
+    def _uint32(self) -> int:
+        if self._index >= self._N:
+            self._twist()
+        value = self._state[self._index]
+        self._index += 1
+        value ^= value >> 11
+        value ^= (value << 7) & 0x9D2C5680
+        value ^= (value << 15) & 0xEFC60000
+        value ^= value >> 18
+        return value & 0xFFFFFFFF
+
+    def random_sample(self) -> float:
+        high = self._uint32() >> 5
+        low = self._uint32() >> 6
+        return (high * 67108864.0 + low) / 9007199254740992.0
+
+
+def preview_conditioning_dropout(seed: int, drop_cond_prob: float) -> dict[str, Any]:
+    """Mirror audited upstream NumPy draws for batch size 1 and use_dino=True."""
+
+    if isinstance(drop_cond_prob, bool) or not isinstance(drop_cond_prob, (int, float)):
+        raise ValueError("drop_cond_prob must be numeric")
+    probability = float(drop_cond_prob)
+    if not 0.0 <= probability < 0.5:
+        raise ValueError("drop_cond_prob must be in [0, 0.5)")
+    rng = _NumpyMT19937(seed)
+    draws: dict[str, Any] = {
+        "normal_drop_draw": rng.random_sample(),
+        "position_drop_draw": rng.random_sample(),
+        "dino_primary_drop_draw": rng.random_sample(),
+        "dino_secondary_drop_draw": rng.random_sample(),
+        "mva_ref_branch_draw": rng.random_sample(),
+        "mva_ref_choice_draw": None,
+    }
+    mva_scale = 1.0
+    ref_scale = 1.0
+    branch_draw = float(draws["mva_ref_branch_draw"])
+    if branch_draw < probability:
+        mva_scale = 0.0
+        ref_scale = 0.0
+    elif branch_draw > 1.0 - probability:
+        choice_draw = rng.random_sample()
+        draws["mva_ref_choice_draw"] = choice_draw
+        if choice_draw < 0.5:
+            mva_scale = 0.0
+        else:
+            ref_scale = 0.0
+    return {**draws, "expected_mva_scale": mva_scale, "expected_ref_scale": ref_scale}
+
+
+def derive_mva_retry_seed(schedule_identity: Mapping[str, Any], retry_index: int) -> int:
+    if not isinstance(retry_index, int) or isinstance(retry_index, bool) or retry_index <= 0:
+        raise ValueError("retry_index must be a positive integer")
+    return _derive_uint64(
+        {
+            "purpose": "phase2n_week2_mva_active_retry_seed_v1",
+            "schedule_identity": dict(schedule_identity),
+            "retry_index": retry_index,
+        }
+    ) % (2**32)
+
+
+def resolve_mva_active_seed(
+    original_candidate_seed: int,
+    schedule_identity: Mapping[str, Any],
+    *,
+    drop_cond_prob: float,
+    maximum_seed_retries: int,
+) -> dict[str, Any]:
+    if (
+        not isinstance(maximum_seed_retries, int)
+        or isinstance(maximum_seed_retries, bool)
+        or maximum_seed_retries < 0
+    ):
+        raise ValueError("maximum_seed_retries must be a non-negative integer")
+    for retry_count in range(maximum_seed_retries + 1):
+        accepted_seed = (
+            original_candidate_seed
+            if retry_count == 0
+            else derive_mva_retry_seed(schedule_identity, retry_count)
+        )
+        preview = preview_conditioning_dropout(accepted_seed, drop_cond_prob)
+        if preview["expected_mva_scale"] == 1.0:
+            return {
+                "original_candidate_seed": original_candidate_seed,
+                "training_step_seed": accepted_seed,
+                "mva_seed_retry_count": retry_count,
+                **preview,
+            }
+    raise RuntimeError(
+        "Could not derive an MVA-active training seed within "
+        f"{maximum_seed_retries} retries for schedule identity {dict(schedule_identity)}"
+    )
+
+
 def build_training_schedule(
     sample_paths: Sequence[str | Path],
     *,
+    conditioning_dropout_policy: Mapping[str, Any],
+    conditioning_source_audit: Mapping[str, Any],
     schedule_seed: int = 42,
     max_steps: int = EXPECTED_MAX_STEPS,
 ) -> dict[str, Any]:
     paths = tuple(Path(path).expanduser().resolve() for path in sample_paths)
+    policy = dict(conditioning_dropout_policy)
+    source_audit = dict(conditioning_source_audit)
+    if policy != EXPECTED_CONDITIONING_DROPOUT_POLICY or policy.get("require_mva_active") is not True:
+        raise ValueError("Schedule requires the exact frozen MVA-active conditioning dropout policy")
+    if (
+        not isinstance(source_audit.get("source_path"), str)
+        or not isinstance(source_audit.get("sha256"), str)
+        or source_audit.get("batch_size") != 1
+        or source_audit.get("use_dino") is not True
+        or not isinstance(source_audit.get("draw_order"), list)
+    ):
+        raise ValueError("Schedule conditioning source audit is incomplete")
     if len(paths) != EXPECTED_TRAIN_COUNT:
         raise ValueError(f"Schedule requires exactly {EXPECTED_TRAIN_COUNT} assets, got {len(paths)}")
     if len(set(paths)) != len(paths):
@@ -518,7 +715,7 @@ def build_training_schedule(
         for within_epoch_position, asset_index in enumerate(permutation):
             asset_path = paths[asset_index]
             global_update = len(records) + 1
-            step_seed = _derive_uint64(
+            original_candidate_seed = _derive_uint64(
                 {
                     "purpose": "training_step",
                     "schedule_seed": schedule_seed,
@@ -528,6 +725,22 @@ def build_training_schedule(
                     "asset_id": asset_path.name,
                 }
             ) % (2**32)
+            schedule_identity = {
+                "schedule_seed": schedule_seed,
+                "global_update": global_update,
+                "epoch": epoch,
+                "within_epoch_position": within_epoch_position,
+                "asset_index": asset_index,
+                "asset_id": asset_path.name,
+                "asset_path": str(asset_path),
+                "original_candidate_seed": original_candidate_seed,
+            }
+            seed_record = resolve_mva_active_seed(
+                original_candidate_seed,
+                schedule_identity,
+                drop_cond_prob=float(policy["drop_cond_prob"]),
+                maximum_seed_retries=int(policy["maximum_seed_retries"]),
+            )
             records.append(
                 {
                     "global_update": global_update,
@@ -536,9 +749,12 @@ def build_training_schedule(
                     "asset_index": asset_index,
                     "asset_id": asset_path.name,
                     "asset_path": str(asset_path),
-                    "training_step_seed": step_seed,
+                    **seed_record,
                 }
             )
+    mva_active_count = sum(record["expected_mva_scale"] == 1.0 for record in records)
+    mva_inactive_count = len(records) - mva_active_count
+    retry_record_count = sum(record["mva_seed_retry_count"] > 0 for record in records)
     core = {
         "phase": "phase2n_week2_pilot_training",
         "schedule_seed": schedule_seed,
@@ -546,13 +762,60 @@ def build_training_schedule(
         "epoch_count": epoch_count,
         "record_count": len(records),
         "indexing": {"global_update": "one_based", "epoch": "zero_based", "within_epoch_position": "zero_based"},
+        "conditioning_dropout_policy": policy,
+        "conditioning_source_audit": source_audit,
+        "mva_active_record_count": mva_active_count,
+        "mva_inactive_record_count": mva_inactive_count,
+        "mva_seed_retry_record_count": retry_record_count,
         "records": records,
     }
     return {**core, "schedule_hash": sha256_bytes(canonical_json_bytes(core))}
 
 
-def validate_training_schedule(schedule: Mapping[str, Any], sample_paths: Sequence[Path]) -> str:
+def _schedule_identity_from_record(record: Mapping[str, Any], schedule_seed: int) -> dict[str, Any]:
+    return {
+        "schedule_seed": schedule_seed,
+        "global_update": record["global_update"],
+        "epoch": record["epoch"],
+        "within_epoch_position": record["within_epoch_position"],
+        "asset_index": record["asset_index"],
+        "asset_id": record["asset_id"],
+        "asset_path": record["asset_path"],
+        "original_candidate_seed": record["original_candidate_seed"],
+    }
+
+
+def mva_schedule_stats(schedule: Mapping[str, Any]) -> dict[str, int]:
     records = schedule.get("records")
+    if not isinstance(records, list):
+        raise ValueError("Training schedule records must be a list")
+    active = sum(record.get("expected_mva_scale") == 1.0 for record in records)
+    return {
+        "mva_active_records": active,
+        "mva_inactive_records": len(records) - active,
+        "mva_seed_retry_records": sum(
+            isinstance(record.get("mva_seed_retry_count"), int) and record["mva_seed_retry_count"] > 0
+            for record in records
+        ),
+    }
+
+
+def validate_training_schedule(
+    schedule: Mapping[str, Any],
+    sample_paths: Sequence[Path],
+    *,
+    conditioning_dropout_policy: Mapping[str, Any],
+    conditioning_source_audit: Mapping[str, Any],
+) -> str:
+    records = schedule.get("records")
+    policy = dict(conditioning_dropout_policy)
+    source_audit = dict(conditioning_source_audit)
+    if schedule.get("conditioning_dropout_policy") != policy:
+        raise ValueError("Training schedule conditioning policy differs from the validated config")
+    if schedule.get("conditioning_source_audit") != source_audit:
+        raise ValueError("Training schedule conditioning source audit differs from the live audited source")
+    if policy != EXPECTED_CONDITIONING_DROPOUT_POLICY or policy.get("require_mva_active") is not True:
+        raise ValueError("Training schedule does not require the frozen MVA-active policy")
     if not isinstance(records, list) or len(records) != EXPECTED_MAX_STEPS:
         raise ValueError("Training schedule must contain exactly 320 records")
     if schedule.get("epoch_count") != 4 or schedule.get("asset_count") != EXPECTED_TRAIN_COUNT:
@@ -566,15 +829,59 @@ def validate_training_schedule(schedule: Mapping[str, Any], sample_paths: Sequen
             raise ValueError(f"Schedule epoch {epoch} does not contain each asset exactly once")
         if [record.get("within_epoch_position") for record in epoch_records] != list(range(EXPECTED_TRAIN_COUNT)):
             raise ValueError(f"Schedule epoch {epoch} positions are not canonical")
+    seed_fields = (
+        "original_candidate_seed",
+        "training_step_seed",
+        "mva_seed_retry_count",
+        "normal_drop_draw",
+        "position_drop_draw",
+        "dino_primary_drop_draw",
+        "dino_secondary_drop_draw",
+        "mva_ref_branch_draw",
+        "mva_ref_choice_draw",
+        "expected_mva_scale",
+        "expected_ref_scale",
+    )
     for expected_update, record in enumerate(records, start=1):
         if record.get("global_update") != expected_update:
             raise ValueError("Schedule global updates are not contiguous and one-based")
         index = record.get("asset_index")
-        if not isinstance(index, int) or record.get("asset_path") != str(Path(sample_paths[index]).resolve()):
+        if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < len(sample_paths):
+            raise ValueError(f"Schedule asset index is invalid at update {expected_update}")
+        expected_path = str(Path(sample_paths[index]).resolve())
+        if record.get("asset_path") != expected_path or record.get("asset_id") != Path(expected_path).name:
             raise ValueError(f"Schedule asset path/index mismatch at update {expected_update}")
-        seed = record.get("training_step_seed")
-        if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
-            raise ValueError(f"Schedule step seed is invalid at update {expected_update}")
+        original_seed = _derive_uint64(
+            {
+                "purpose": "training_step",
+                "schedule_seed": schedule["schedule_seed"],
+                "global_update": expected_update,
+                "epoch": record["epoch"],
+                "asset_index": index,
+                "asset_id": record["asset_id"],
+            }
+        ) % (2**32)
+        if record.get("original_candidate_seed") != original_seed:
+            raise ValueError(f"Schedule original candidate seed drifted at update {expected_update}")
+        expected_seed_record = resolve_mva_active_seed(
+            original_seed,
+            _schedule_identity_from_record(record, int(schedule["schedule_seed"])),
+            drop_cond_prob=float(policy["drop_cond_prob"]),
+            maximum_seed_retries=int(policy["maximum_seed_retries"]),
+        )
+        if any(record.get(field) != expected_seed_record.get(field) for field in seed_fields):
+            raise ValueError(f"Schedule conditioning preview or retry drifted at update {expected_update}")
+        if record.get("expected_mva_scale") != 1.0:
+            raise RuntimeError(f"Schedule predicts inactive MVA at update {expected_update}")
+    stats = mva_schedule_stats(schedule)
+    if stats["mva_active_records"] != EXPECTED_MAX_STEPS or stats["mva_inactive_records"] != 0:
+        raise RuntimeError(f"Training schedule is not fully MVA-active: {stats}")
+    if schedule.get("mva_active_record_count") != stats["mva_active_records"]:
+        raise ValueError("Training schedule MVA-active count metadata is wrong")
+    if schedule.get("mva_inactive_record_count") != stats["mva_inactive_records"]:
+        raise ValueError("Training schedule MVA-inactive count metadata is wrong")
+    if schedule.get("mva_seed_retry_record_count") != stats["mva_seed_retry_records"]:
+        raise ValueError("Training schedule MVA retry count metadata is wrong")
     core = {key: value for key, value in schedule.items() if key != "schedule_hash"}
     actual_hash = sha256_bytes(canonical_json_bytes(core))
     if schedule.get("schedule_hash") != actual_hash:
@@ -611,7 +918,11 @@ def sampling_trace_record(schedule_record: Mapping[str, Any], protocol_metadata:
         "asset_index": schedule_record["asset_index"],
         "asset_id": schedule_record["asset_id"],
         "asset_path": schedule_record["asset_path"],
+        "original_candidate_seed": schedule_record["original_candidate_seed"],
         "training_step_seed": schedule_record["training_step_seed"],
+        "expected_mva_scale": schedule_record["expected_mva_scale"],
+        "expected_ref_scale": schedule_record["expected_ref_scale"],
+        "mva_seed_retry_count": schedule_record["mva_seed_retry_count"],
         "selected_reference_view": protocol_metadata["selected_reference_view"],
         "reference_lighting_pair": list(protocol_metadata["reference_lighting_pair"]),
         "reference_image_paths": list(protocol_metadata["reference_image_paths"]),
@@ -662,7 +973,18 @@ def compare_sampling_traces(pc_s1_trace: Path, pc_full_trace: Path, expected_cou
     asset_mismatches: list[int] = []
     protocol_mismatches: list[int] = []
     for index, (left_row, right_row) in enumerate(zip(left, right), start=1):
-        asset_fields = ("global_update", "epoch", "asset_index", "asset_id", "asset_path", "training_step_seed")
+        asset_fields = (
+            "global_update",
+            "epoch",
+            "asset_index",
+            "asset_id",
+            "asset_path",
+            "original_candidate_seed",
+            "training_step_seed",
+            "expected_mva_scale",
+            "expected_ref_scale",
+            "mva_seed_retry_count",
+        )
         protocol_fields = (
             "selected_reference_view",
             "reference_lighting_pair",
@@ -751,23 +1073,39 @@ def run_check_only(config_path: str | Path, project_root: str | Path = PROJECT_R
     api_report = validate_week1_api_contracts(validated.project_root)
     disk_report = validate_free_disk(validated.output_root, float(validated.values["minimum_free_disk_gib"]))
     eval_report = validate_eval_manifest(validated.eval_manifest, validated.project_root)
+    source_audit = validate_conditioning_source_audit()
+    policy = validated.values["conditioning_dropout_policy"]
     schedule = build_training_schedule(
         validated.train_sample_paths,
+        conditioning_dropout_policy=policy,
+        conditioning_source_audit=source_audit,
         schedule_seed=int(validated.values["schedule_seed"]),
         max_steps=int(validated.values["max_steps"]),
     )
-    validate_training_schedule(schedule, validated.train_sample_paths)
+    validate_training_schedule(
+        schedule,
+        validated.train_sample_paths,
+        conditioning_dropout_policy=policy,
+        conditioning_source_audit=source_audit,
+    )
+    stats = mva_schedule_stats(schedule)
     print(f"config={validated.config_path}")
     print(f"train_json={validated.train_json}")
     print(f"train_count={len(validated.train_sample_paths)}")
+    print(f"conditioning_source={source_audit['source_path']}")
+    print(f"conditioning_source_sha256={source_audit['sha256']}")
     print(f"schedule_records={schedule['record_count']}")
     print(f"schedule_epochs={schedule['epoch_count']}")
+    print(f"mva_active_records={stats['mva_active_records']}")
+    print(f"mva_inactive_records={stats['mva_inactive_records']}")
+    print(f"mva_seed_retry_records={stats['mva_seed_retry_records']}")
     print(f"schedule_hash={schedule['schedule_hash']}")
     print(f"output_root={validated.output_root}")
     print(f"free_disk_gib={disk_report['free_gib']:.2f}")
     print(f"scope_order={','.join(validated.values['scope_order'])}")
     print(f"eval_case_ids={','.join(eval_report['case_ids'])}")
     print(f"day5_runtime_reuse={not api_report['shared_runtime_extraction_needed']}")
+    print(MVA_SCHEDULE_TOKEN)
     print(READINESS_TOKEN)
     return validated
 
@@ -845,7 +1183,12 @@ def ensure_schedule_file(run_dir: Path, expected_schedule: Mapping[str, Any], sa
     path = run_dir / "training_schedule.json"
     if path.exists():
         existing = read_json_object(path)
-        validate_training_schedule(existing, sample_paths)
+        validate_training_schedule(
+            existing,
+            sample_paths,
+            conditioning_dropout_policy=expected_schedule["conditioning_dropout_policy"],
+            conditioning_source_audit=expected_schedule["conditioning_source_audit"],
+        )
         if canonical_json_bytes(existing) != canonical_json_bytes(expected_schedule):
             raise RuntimeError("Existing training schedule differs from the deterministic schedule for this config")
         return path
@@ -870,6 +1213,8 @@ def ensure_runtime_manifest(
         "train_json": str(validated.train_json),
         "train_count": len(validated.train_sample_paths),
         "output_root": str(validated.output_root),
+        "conditioning_dropout_policy": schedule["conditioning_dropout_policy"],
+        "conditioning_source_audit": schedule["conditioning_source_audit"],
     }
     if path.exists():
         existing = read_json_object(path)
@@ -1175,6 +1520,15 @@ def run_scope_training(
 
     if tuple(DAY4_MODEL_KEYS) != HISTORICAL_MODEL_KEYS:
         raise RuntimeError("Historical model-key contract changed")
+    inactive_updates = [
+        record["global_update"]
+        for record in schedule["records"]
+        if record.get("expected_mva_scale") != 1.0
+    ]
+    if inactive_updates:
+        raise RuntimeError(
+            f"Refusing model load because the schedule predicts inactive MVA: {inactive_updates[:20]}"
+        )
     scope_dir = run_dir / scope
     if scope_dir.exists():
         completed = validate_scope_completion(scope_dir, scope, str(schedule["schedule_hash"]), torch=torch)
@@ -1271,7 +1625,11 @@ def run_scope_training(
             "asset_index": schedule_record["asset_index"],
             "asset_id": schedule_record["asset_id"],
             "asset_path": schedule_record["asset_path"],
+            "original_candidate_seed": schedule_record["original_candidate_seed"],
             "training_step_seed": schedule_record["training_step_seed"],
+            "expected_mva_scale": schedule_record["expected_mva_scale"],
+            "expected_ref_scale": schedule_record["expected_ref_scale"],
+            "mva_seed_retry_count": schedule_record["mva_seed_retry_count"],
             "selected_reference_view": trace_record["selected_reference_view"],
             "reference_lighting_pair": trace_record["reference_lighting_pair"],
             "target_view_order": trace_record["target_view_order"],
@@ -1429,6 +1787,22 @@ def run_training(
     run_id: str,
     scopes: Sequence[str],
 ) -> Path:
+    policy = validated.values["conditioning_dropout_policy"]
+    source_audit = validate_conditioning_source_audit()
+    schedule = build_training_schedule(
+        validated.train_sample_paths,
+        conditioning_dropout_policy=policy,
+        conditioning_source_audit=source_audit,
+        schedule_seed=int(validated.values["schedule_seed"]),
+        max_steps=int(validated.values["max_steps"]),
+    )
+    validate_training_schedule(
+        schedule,
+        validated.train_sample_paths,
+        conditioning_dropout_policy=policy,
+        conditioning_source_audit=source_audit,
+    )
+
     _prepend_runtime_paths(validated.project_root)
     import torch
 
@@ -1446,15 +1820,14 @@ def run_training(
     if not is_relative_to(run_dir, validated.output_root):
         raise ValueError(f"Run directory escapes Week 2 output root: {run_dir}")
     run_dir.mkdir(parents=True, exist_ok=True)
-    schedule = build_training_schedule(
-        validated.train_sample_paths,
-        schedule_seed=int(validated.values["schedule_seed"]),
-        max_steps=int(validated.values["max_steps"]),
-    )
-    validate_training_schedule(schedule, validated.train_sample_paths)
     schedule_path = ensure_schedule_file(run_dir, schedule, validated.train_sample_paths)
     schedule = read_json_object(schedule_path)
-    validate_training_schedule(schedule, validated.train_sample_paths)
+    validate_training_schedule(
+        schedule,
+        validated.train_sample_paths,
+        conditioning_dropout_policy=policy,
+        conditioning_source_audit=source_audit,
+    )
     ensure_runtime_manifest(run_dir, validated, schedule, runtime_device)
 
     requested = tuple(scopes)

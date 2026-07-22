@@ -2,9 +2,10 @@
 
 ## Status
 
-This document prepares the shared PC-S1 and PC-Full controlled-pilot runner.
-**No Week 2 training has started.** The code and frozen evaluation manifest
-must pass local review before the A100 job is submitted manually.
+The first Week 2 runtime attempt, job `264014`, failed before any valid
+optimizer update or checkpoint. The focused MVA-active schedule repair is now
+under local review. No repaired Week 2 run has started; a new A100 job may be
+submitted manually only after the readiness gate passes.
 
 ## Goal
 
@@ -20,6 +21,53 @@ broader PC-Full run.
 
 This stage performs no validation or test inference during training. It also
 does not replace the existing rendered-view evaluation tools.
+
+## Failed Run 264014 And Focused Repair
+
+The first manual A100 attempt, Slurm job `264014`, is retained read-only at:
+
+```text
+outputs/phase2n/week2_pilot_training/slurm_264014/
+```
+
+This was a runner/schedule contract failure, not an OOM, data failure, or
+checkpoint failure. The job loaded the true-PBR base and selected PC-S1, but
+failed on update 1 before writing `training_metrics.jsonl` or
+`sampling_trace.jsonl`. No optimizer update completed, no usable checkpoint was
+produced, and PC-Full never started.
+
+The exact first schedule record was asset `B073P77B6B` with candidate seed
+`2775693311`. The audited upstream NumPy draw sequence was:
+
+| Draw | Value |
+| --- | ---: |
+| Normal dropout | `0.5166324730649756` |
+| Position dropout | `0.36297839298666623` |
+| Primary DINO dropout | `0.8487201457374238` |
+| Secondary DINO dropout | `0.6841948775649342` |
+| MVA/reference branch | `0.09623141240259903` |
+
+Because the branch draw was below `drop_cond_prob = 0.1`, the official
+training step set both MVA and reference scales to `0.0`. PC-S1 trains only the
+`attn_multiview` q/k/v/output projections, so its strict all-zero-gradient guard
+correctly stopped the run. Original update 8 also disabled MVA, demonstrating
+that this was a schedule-level issue rather than a one-off draw.
+
+The repair preserves every asset permutation and original candidate seed, then
+previews the audited conditioning draws. An MVA-inactive candidate is replaced
+by a deterministic SHA-256-derived retry seed. The repaired update 1 accepts
+seed `3478810601` after one retry and predicts MVA/reference scales `1.0/1.0`.
+Across the 320-record schedule, 50 records require at least one retry, all 320
+predict MVA scale `1.0`, and zero predict inactive MVA.
+
+The retry changes only the production-loss seed. Day 3 reference-view and
+lighting decisions retain their independent asset/epoch-derived seed and are
+unchanged. Normal, position, DINO, and reference conditioning dropout can still
+occur; this repair guarantees only the MVA path needed for meaningful PC-S1
+updates.
+
+The failed directory must not be resumed or overwritten. Any repaired pilot
+must use a completely new Slurm job ID and therefore a new run directory.
 
 ## Runtime Reuse Decision
 
@@ -51,6 +99,7 @@ Configuration:
 | Base / schedule seed | 42 / 42 |
 | Image size | 512 |
 | Spatial augmentation | None |
+| Conditioning policy | `drop_cond_prob=0.1`; MVA required active; at most 128 deterministic retries |
 | Precision | bf16 mixed precision |
 | Warmup | 50-step linear warmup, then constant |
 | Gradient clipping | 1.0 |
@@ -86,8 +135,15 @@ Every record fixes:
 
 - one-based global optimizer update;
 - zero-based epoch and within-epoch position;
-- original asset index, ID, and absolute sample path; and
-- a deterministic production-loss seed.
+- original asset index, ID, and absolute sample path;
+- the unchanged original candidate seed;
+- the accepted MVA-active production-loss seed and retry count; and
+- the previewed normal, position, DINO, MVA/reference draws and expected scales.
+
+Schedule metadata records the exact audited upstream source path and SHA-256.
+Check-only fails closed if that source hash changes. Both scopes consume this
+same conditioned schedule, including identical accepted seeds and expected
+scales.
 
 The same schedule file drives both scopes. Immediately before the official
 production loss, the reused Day 5 helper resets Python, NumPy, Torch CPU, and
@@ -104,6 +160,13 @@ Only the six historical model keys enter the Hunyuan training step.
 sampling trace.
 
 ## Training Guards
+
+Before importing Torch or loading either model, the runner verifies the audited
+upstream source hash, deterministically rebuilds all 320 records, and fails if
+any record predicts inactive MVA. The strict zero-gradient guard remains in
+force: a predicted-active PC-S1 step that still produces an all-zero gradient
+is a genuine runtime failure, not a skipped or no-op update. The optimizer and
+scheduler never advance after such a failure.
 
 At every update the runner:
 
@@ -226,9 +289,15 @@ python scripts/phase2n_week2_train_pilots.py \
 bash -n env/run_phase2n_week2_train_pilots_a100.sbatch
 ```
 
-Expected readiness token:
+Expected schedule/readiness lines:
 
 ```text
+schedule_records=320
+schedule_epochs=4
+mva_active_records=320
+mva_inactive_records=0
+mva_seed_retry_records=50
+PHASE2N_WEEK2_MVA_ACTIVE_SCHEDULE_OK
 PHASE2N_WEEK2_PILOT_TRAINING_READINESS_OK
 ```
 
@@ -253,5 +322,7 @@ Codex does not submit this job. The sbatch performs check-only first, then runs
 PC-S1 followed by a fresh-base PC-Full. It runs no inference or evaluation and
 prints `===== JOB END: SUCCESS =====` only after the runner succeeds.
 
-At the time this document was written, no Week 2 model was loaded, no GPU was
-used, and no training had started.
+The failed job `264014` loaded a model but completed no valid optimizer update
+and produced no usable checkpoint. This repair work used no model, GPU,
+training, inference, Blender, or Slurm submission. Any next attempt must receive
+a new Slurm ID and leave `slurm_264014` untouched.

@@ -8,6 +8,11 @@
   "batch_size": 1,
   "num_workers": 0,
   "augmentation_mode": "none",
+  "conditioning_dropout_policy": {
+    "drop_cond_prob": 0.1,
+    "require_mva_active": true,
+    "maximum_seed_retries": 128
+  },
   "max_steps": 320,
   "warmup_steps": 50,
   "gradient_clip_norm": 1.0,

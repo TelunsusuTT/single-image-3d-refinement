@@ -2,16 +2,17 @@
 
 ## Summary
 
-The project is in Phase 2N Week 2 Stage 1, developing the shared deterministic
-PC-S1/PC-Full pilot runner and freezing its evaluation cases. Week 1 Days 1-5
-are complete. The Day 5 A100 runtime and numeric audits passed, and the
-controlled Week 2 pilot is authorized with reviewed learning rates and runtime
-limits.
+The project is in the focused Phase 2N Week 2 runner repair after failed pilot
+job `264014`. Week 1 Days 1-5 are complete, and the Day 5 A100 runtime/numeric
+audits still authorize the reviewed learning rates and runtime limits. The first
+Week 2 attempt completed no valid optimizer update and produced no usable
+checkpoint.
 
 Phase 2M refview+DINO LoRA is complete and negative on held-out cases. Phase 2N
 now has a protocol-corrected no-augmentation reader, exact PC-S1 and PC-Full
-scope helpers, optimizer/scheduler guards, and successful real-model Day 5
-evidence. No Week 2 training has started.
+scope helpers, optimizer/scheduler guards, successful real-model Day 5
+evidence, and an MVA-active deterministic schedule gate. No repaired Week 2 run
+has started.
 
 ## Initialization Fix
 
@@ -76,10 +77,20 @@ loss, gradient, update, memory, scheduler, and selective reload checks. Numeric
 review authorized PC-S1 at peak LR `1e-6` and PC-Full at peak LR `5e-7` for a
 320-update controlled pilot with checkpoints at 160 and 320.
 
-The current task is Week 2 Stage 1 local runner/readiness development. One
-shared deterministic schedule and a frozen six-validation/two-train-sanity
-evaluation pilot are being prepared before any model run. Test data remains
-excluded from training and model selection. No Week 2 training has started.
+Job `264014` exposed a schedule contract failure: update 1 used candidate seed
+`2775693311`, whose audited MVA/reference branch draw
+`0.09623141240259903` disabled MVA and therefore gave PC-S1 an expected
+all-zero gradient. Original update 8 was also MVA-inactive. The job stopped
+before metrics/traces, a valid optimizer update, or a checkpoint, and PC-Full
+did not start.
+
+The repaired shared schedule preserves all four 80-asset permutations and
+original candidate seeds, then deterministically retries only MVA-inactive
+production-loss seeds. It has 320 MVA-active records, zero inactive records,
+and 50 records with at least one retry. The same accepted schedule drives both
+scopes; Day 3 reference/light decisions, no augmentation, data, learning rates,
+warmup, checkpoint steps, scopes, and the frozen six-validation/two-train-sanity
+evaluation cases remain unchanged. Test data remains excluded.
 
 ## No Full80-1000 Yet
 
@@ -89,8 +100,9 @@ is mixed, and visual boards still show leakage/ambiguity.
 
 ## Current Decision
 
-Finish and locally validate the shared Week 2 PC-S1/PC-Full runner, frozen
-evaluation manifest, and manual A100 launcher. After assistant and user review,
-the authorized pilot may run PC-S1 first and PC-Full second from fresh identical
-true-PBR bases. Do not start Week 2 training before that gate, and do not use the
-test split for selection.
+Complete local validation of the audited MVA-active schedule repair. Keep the
+strict zero-gradient guard: an accepted MVA-active PC-S1 seed that still yields
+zero gradient must fail. After assistant and user review, rerun PC-S1 first and
+PC-Full second from fresh identical true-PBR bases under a completely new Slurm
+job ID. Never resume or overwrite `slurm_264014`, and do not use the test split
+for selection.
