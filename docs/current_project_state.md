@@ -2,11 +2,10 @@
 
 ## Summary
 
-The project is in Phase 2N Week 2 scope-checkpoint pilot inference development
-and readiness. Week 1 Days 1-5 are complete, and controlled Week 2 training run
-`slurm_264123` completed successfully. Its PC-S1 and PC-Full step-160 and
-step-320 trainable-scope-only checkpoints have been audited without loading
-them.
+The project is in Phase 2N Week 2 frozen pilot rendered-view evaluation
+readiness. Week 1 Days 1-5 are complete, controlled Week 2 training run
+`slurm_264123` completed successfully, and four-checkpoint inference run
+`slurm_264581` produced all 32 expected fixed-mesh outputs without test data.
 
 Phase 2M refview+DINO LoRA is complete and negative on held-out cases. Phase 2N
 now has a protocol-corrected no-augmentation reader, exact PC-S1 and PC-Full
@@ -94,13 +93,20 @@ evaluation cases remain unchanged. The repaired controlled run completed under
 `outputs/phase2n/week2_pilot_training/slurm_264123` and retained four audited
 scope-only checkpoints: PC-S1 and PC-Full at updates 160 and 320.
 
-The current task prepares one idempotent A100 inference workflow for those four
-variants. Each variant must be reconstructed on a newly loaded identical
-official true-PBR base and evaluated on the already frozen six validation and
-two train-sanity cases with view 005, AL lighting, and fixed-mesh/no-remesh
-inference. Existing corrected-input base and historical full80 outputs cover
-all eight cases and will be reused rather than rerun. Test data remains
-excluded from readiness, inference, and model selection.
+The A100 inference stage is complete under
+`outputs/phase2n/week2_pilot_inference/slurm_264581`. PC-S1 and PC-Full at
+steps 160 and 320 each produced eight successful fixed-mesh outputs. Existing
+corrected-input base and historical full80 GLBs provide complete compatible
+coverage for those same cases. No baseline inference was rerun, checkpoint
+state did not accumulate across variants, and no test case was used.
+
+Stage 5 now prepares a local, process-isolated Blender rendered-view comparison
+of six variants: corrected-input base, historical full80-500, and PC-S1/PC-Full
+at steps 160/320. It uses the frozen six validation and two train-sanity cases,
+AL references, views `000-005`, and the historical Phase 2K camera and metric
+implementations. The plan contains 48 GLBs and 288 new PNG renders. The
+preliminary concern that backside leakage remains is only a hypothesis until
+runtime metrics and visual boards exist.
 
 ## No Full80-1000 Yet
 
@@ -110,9 +116,9 @@ is mixed, and visual boards still show leakage/ambiguity.
 
 ## Current Decision
 
-Complete local validation and review of the Week 2 scope-checkpoint inference
-workflow. After manual A100 inference, use the later Blender/rendered-view stage
-to compare PC-S1 and PC-Full steps 160/320 against the reused corrected-input
-base and historical full80 result. Training loss alone must not select a
-checkpoint. No Week 2 quality claim should be made before that evidence exists,
-and the test split must remain untouched.
+Complete local readiness review, then run the frozen Stage 5 rendered-view
+workflow manually on `gpu12`. Model selection must use validation only, with
+train-sanity treated as diagnostic and non-front/leakage safety checked before
+front gains. Training loss alone must not select a checkpoint. No Week 2
+quality claim should be made before the 288-render metric set and human boards
+exist, and the test split must remain untouched.

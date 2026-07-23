@@ -1,0 +1,109 @@
+{
+  "phase": "phase2n_week2_pilot_rendered_eval",
+  "inference_run_dir": "outputs/phase2n/week2_pilot_inference/slurm_264581",
+  "frozen_cases_config": "configs/phase2n_week2_pilot_eval_cases.json",
+  "output_root": "outputs/phase2n/week2_pilot_rendered_eval",
+  "render_resolution": 512,
+  "blender_bin": "/vol/bitbucket/ct1022/tools/bin/blender",
+  "stable_renderer_script": "scripts/render_phase2k3_glb_views_blender.py",
+  "stable_metrics_script": "scripts/compare_phase2k3_rendered_views.py",
+  "variant_order": [
+    "corrected_input_base",
+    "historical_full80_500",
+    "pc_s1_step160",
+    "pc_s1_step320",
+    "pc_full_step160",
+    "pc_full_step320"
+  ],
+  "variant_sources": {
+    "corrected_input_base": {
+      "kind": "baseline_reuse_report",
+      "report_key": "corrected_input_base"
+    },
+    "historical_full80_500": {
+      "kind": "baseline_reuse_report",
+      "report_key": "historical_full80_500"
+    },
+    "pc_s1_step160": {
+      "kind": "stage4_inference",
+      "manifest_template": "pc_s1_step160/{asset_id}/inference_manifest.json"
+    },
+    "pc_s1_step320": {
+      "kind": "stage4_inference",
+      "manifest_template": "pc_s1_step320/{asset_id}/inference_manifest.json"
+    },
+    "pc_full_step160": {
+      "kind": "stage4_inference",
+      "manifest_template": "pc_full_step160/{asset_id}/inference_manifest.json"
+    },
+    "pc_full_step320": {
+      "kind": "stage4_inference",
+      "manifest_template": "pc_full_step320/{asset_id}/inference_manifest.json"
+    }
+  },
+  "view_ids": [
+    "000",
+    "001",
+    "002",
+    "003",
+    "004",
+    "005"
+  ],
+  "view_groups": {
+    "all_views": [
+      "000",
+      "001",
+      "002",
+      "003",
+      "004",
+      "005"
+    ],
+    "input_005": [
+      "005"
+    ],
+    "front_004_005": [
+      "004",
+      "005"
+    ],
+    "nonfront_000_003": [
+      "000",
+      "001",
+      "002",
+      "003"
+    ]
+  },
+  "selected_input_view": "005",
+  "reference_lighting": "AL",
+  "background_color": [
+    0.28,
+    0.28,
+    0.28
+  ],
+  "isolated_blender_process_per_glb": true,
+  "expected_counts": {
+    "cases": 8,
+    "val": 6,
+    "train_sanity": 2,
+    "test": 0,
+    "variants": 6,
+    "source_glbs": 48,
+    "references": 48,
+    "planned_renders": 288
+  },
+  "leakage_risk_assets": [
+    "B073P1D981",
+    "B075YLXSJC"
+  ],
+  "high_front_complexity_assets": [
+    "B075YLQTNP",
+    "B075YM2VXJ"
+  ],
+  "historical_median_assets": [
+    "B073P52NDX",
+    "B073P1S8VZ"
+  ],
+  "train_sanity_assets": [
+    "B073P16J7Y",
+    "B073P1H786"
+  ]
+}
