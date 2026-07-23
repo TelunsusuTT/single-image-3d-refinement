@@ -684,11 +684,74 @@ def load_stable_metric_helpers(
 
 
 def blender_render_one(args: argparse.Namespace) -> int:
-    if not args.input_glb or not args.output_dir or not args.stable_renderer:
-        raise EvaluationError("internal Blender mode requires input/output/helper paths")
+    required = {
+        "config": args.config,
+        "worker_run_dir": args.worker_run_dir,
+        "worker_case_id": args.worker_case_id,
+        "worker_variant_id": args.worker_variant_id,
+        "worker_eval_split": args.worker_eval_split,
+        "worker_source_split": args.worker_source_split,
+        "input_glb": args.input_glb,
+        "output_dir": args.output_dir,
+        "stable_renderer": args.stable_renderer,
+    }
+    missing = [name for name, value in required.items() if not value]
+    if missing:
+        raise EvaluationError(
+            "internal Blender mode is missing: " + ", ".join(missing)
+        )
+    config_path = Path(args.config).resolve()
+    worker_config = load_json(config_path)
+    validate_exact_protocol_config(worker_config)
+    run_dir = Path(args.worker_run_dir).resolve()
     input_glb = Path(args.input_glb).resolve()
     output_dir = Path(args.output_dir).resolve()
     renderer_path = Path(args.stable_renderer).resolve()
+    case_id = str(args.worker_case_id)
+    variant = str(args.worker_variant_id)
+    eval_split = str(args.worker_eval_split)
+    source_split = str(args.worker_source_split)
+    if case_id not in EXPECTED_CASE_IDS:
+        raise EvaluationError(f"unexpected internal worker case ID: {case_id}")
+    if variant not in EXPECTED_VARIANTS:
+        raise EvaluationError(f"unexpected internal worker variant ID: {variant}")
+    if eval_split not in {"val", "train_sanity"}:
+        raise EvaluationError(f"unexpected internal worker eval split: {eval_split}")
+    expected_source_split = "val" if eval_split == "val" else "train"
+    if source_split != expected_source_split:
+        raise EvaluationError(
+            f"internal worker source split {source_split!r} does not match "
+            f"{eval_split!r}"
+        )
+    configured_output_root = resolve_project_path(
+        worker_config["output_root"], config_path.parents[1]
+    )
+    if not is_within(run_dir, configured_output_root):
+        raise EvaluationError(
+            f"internal worker run directory is outside output_root: {run_dir}"
+        )
+    expected_output_dir = run_dir / "renders" / eval_split / case_id / variant
+    if output_dir != expected_output_dir:
+        raise EvaluationError(
+            f"internal worker output directory mismatch: {output_dir} != "
+            f"{expected_output_dir}"
+        )
+    expected_renderer = resolve_project_path(
+        worker_config["stable_renderer_script"], config_path.parents[1]
+    )
+    if renderer_path != expected_renderer:
+        raise EvaluationError(
+            f"internal worker renderer mismatch: {renderer_path} != "
+            f"{expected_renderer}"
+        )
+    if int(args.internal_resolution) != int(worker_config["render_resolution"]):
+        raise EvaluationError("internal worker resolution differs from config")
+    if list(args.internal_view_ids) != list(worker_config["view_ids"]):
+        raise EvaluationError("internal worker views differ from config")
+    if list(args.internal_background_color) != list(
+        worker_config["background_color"]
+    ):
+        raise EvaluationError("internal worker background differs from config")
     validate_nonempty_file(input_glb, "internal render GLB")
     validate_nonempty_file(renderer_path, "internal stable renderer")
     import bpy  # type: ignore
@@ -702,10 +765,65 @@ def blender_render_one(args: argparse.Namespace) -> int:
         int(args.internal_resolution),
         list(args.internal_background_color),
     )
+    report["worker_context"] = {
+        "config_path": str(config_path),
+        "run_dir": str(run_dir),
+        "case_id": case_id,
+        "variant": variant,
+        "eval_split": eval_split,
+        "source_split": source_split,
+        "input_glb": str(input_glb),
+        "output_dir": str(output_dir),
+    }
     write_json_atomic(output_dir / "render_report.json", report)
-    print(f"rendered isolated GLB: {input_glb}")
+    print(f"rendered isolated GLB: {case_id}/{variant}: {input_glb}")
     print("PHASE2N_WEEK2_RENDER_ONE_OK")
     return 0
+
+
+def build_blender_worker_command(
+    protocol: dict[str, Any],
+    run_root: Path,
+    case: dict[str, Any],
+    variant: str,
+    source_glb: Path,
+    output_dir: Path,
+    script_path: Path | None = None,
+) -> list[str]:
+    config = protocol["config"]
+    script_path = (script_path or Path(__file__)).resolve()
+    return [
+        protocol["blender_bin"],
+        "--background",
+        "--python",
+        str(script_path),
+        "--",
+        "--_render-one",
+        "--config",
+        protocol["config_path"],
+        "--worker-run-dir",
+        str(run_root),
+        "--worker-case-id",
+        case["asset_id"],
+        "--worker-variant-id",
+        variant,
+        "--worker-eval-split",
+        case["eval_split"],
+        "--worker-source-split",
+        case["source_split"],
+        "--input-glb",
+        str(source_glb),
+        "--output-dir",
+        str(output_dir),
+        "--stable-renderer",
+        protocol["stable_renderer_script"],
+        "--internal-resolution",
+        str(config["render_resolution"]),
+        "--internal-view-ids",
+        *config["view_ids"],
+        "--internal-background-color",
+        *(str(value) for value in config["background_color"]),
+    ]
 
 
 def run_render_stage(protocol: dict[str, Any], run_root: Path) -> dict[str, Any]:
@@ -713,7 +831,6 @@ def run_render_stage(protocol: dict[str, Any], run_root: Path) -> dict[str, Any]
     config = protocol["config"]
     view_ids = list(config["view_ids"])
     resolution = int(config["render_resolution"])
-    background = [str(value) for value in config["background_color"]]
     script_path = Path(__file__).resolve()
     variant_map = {row["variant"]: row for row in protocol["variants"]}
     rows: list[dict[str, Any]] = []
@@ -738,26 +855,15 @@ def run_render_stage(protocol: dict[str, Any], run_root: Path) -> dict[str, Any]
                 print(f"skipped complete: {case['asset_id']}/{variant}")
                 continue
             source = variant_map[variant]["cases"][case["asset_id"]]
-            command = [
-                protocol["blender_bin"],
-                "--background",
-                "--python",
-                str(script_path),
-                "--",
-                "--_render-one",
-                "--input-glb",
-                source["glb_path"],
-                "--output-dir",
-                str(output_dir),
-                "--stable-renderer",
-                protocol["stable_renderer_script"],
-                "--internal-resolution",
-                str(resolution),
-                "--internal-view-ids",
-                *view_ids,
-                "--internal-background-color",
-                *background,
-            ]
+            command = build_blender_worker_command(
+                protocol,
+                run_root,
+                case,
+                variant,
+                Path(source["glb_path"]),
+                output_dir,
+                script_path=script_path,
+            )
             completed = subprocess.run(
                 command,
                 check=False,
@@ -1536,6 +1642,14 @@ def execute_runtime(
     return 0
 
 
+def project_arguments(argv: list[str]) -> list[str]:
+    """Return project arguments after the Blender argv boundary."""
+
+    if "--" in argv:
+        return argv[argv.index("--") + 1 :]
+    return argv
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Check or run the frozen Phase 2N Week 2 pilot rendered-view evaluation."
@@ -1549,6 +1663,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     modes.add_argument("--boards-only", action="store_true")
     modes.add_argument("--_render-one", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--run-id")
+    parser.add_argument("--worker-run-dir", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--worker-case-id", help=argparse.SUPPRESS)
+    parser.add_argument("--worker-variant-id", help=argparse.SUPPRESS)
+    parser.add_argument("--worker-eval-split", help=argparse.SUPPRESS)
+    parser.add_argument("--worker-source-split", help=argparse.SUPPRESS)
     parser.add_argument("--input-glb", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--output-dir", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--stable-renderer", type=Path, help=argparse.SUPPRESS)
@@ -1572,7 +1691,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    args = parse_args(project_arguments(raw_argv))
     try:
         if args._render_one:
             return blender_render_one(args)

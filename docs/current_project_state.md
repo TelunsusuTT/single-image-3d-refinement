@@ -108,6 +108,14 @@ implementations. The plan contains 48 GLBs and 288 new PNG renders. The
 preliminary concern that backside leakage remains is only a hypothesis until
 runtime metrics and visual boards exist.
 
+The first local Stage 5 run, `phase2n_week2_eval_v1`, reached a clean Blender
+3.6 background startup but stopped before the first GLB import. The internal
+worker action was placed after the Blender `--` boundary while the project
+parser still consumed the unsliced Blender argv. This was a CLI routing failure
+only: no render, metric, model, GLB, or checkpoint result was invalidated. The
+failed run remains read-only, and the repair leaves the scientific
+render/evaluation protocol unchanged.
+
 ## No Full80-1000 Yet
 
 Do not prepare or run full80-1000 yet. Full80-500 is not a strong enough signal
@@ -116,9 +124,10 @@ is mixed, and visual boards still show leakage/ambiguity.
 
 ## Current Decision
 
-Complete local readiness review, then run the frozen Stage 5 rendered-view
-workflow manually on `gpu12`. Model selection must use validation only, with
-train-sanity treated as diagnostic and non-front/leakage safety checked before
-front gains. Training loss alone must not select a checkpoint. No Week 2
-quality claim should be made before the 288-render metric set and human boards
-exist, and the test split must remain untouched.
+Complete local readiness review and one isolated worker smoke, then run the
+frozen Stage 5 rendered-view workflow manually on `gpu12` under a new run ID.
+Model selection must use validation only, with train-sanity treated as
+diagnostic and non-front/leakage safety checked before front gains. Training
+loss alone must not select a checkpoint. No Week 2 quality claim should be made
+before the 288-render metric set and human boards exist, and the test split
+must remain untouched.

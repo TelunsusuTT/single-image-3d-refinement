@@ -96,6 +96,22 @@ python scripts/phase2n_week2_evaluate_pilots.py \
   --run-id <RUN_ID>
 ```
 
+### V1 Worker Routing Failure
+
+The first local run,
+`outputs/phase2n/week2_pilot_rendered_eval/phase2n_week2_eval_v1`, is retained
+read-only. Blender 3.6.0 and the clean background-startup smoke succeeded, but
+the first worker stopped before GLB import because the Stage 5 script parsed
+the complete Blender argv instead of parsing project arguments after the `--`
+boundary. The internal worker action was therefore hidden from the required
+argparse action group.
+
+The repair changes only CLI routing and adds explicit run, case, variant, and
+split metadata to the worker command. It does not change the stable renderer,
+camera, views, lighting, materials, background, resolution, GLBs, metrics, or
+aggregation. No model output or scientific result was invalidated. Any next
+full evaluation must use a new run ID rather than reuse `phase2n_week2_eval_v1`.
+
 The stages can also be run separately with the same run ID:
 
 ```bash

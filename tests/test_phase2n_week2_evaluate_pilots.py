@@ -295,6 +295,101 @@ def test_check_only_never_executes_blender(
     assert "PHASE2N_WEEK2_RENDERED_EVAL_READINESS_OK" in output
 
 
+def make_worker_command(protocol: dict) -> tuple[list[str], Path]:
+    case = protocol["cases"][0]
+    variant = evaluate.BASE_VARIANT
+    run_root = Path(protocol["output_root"]) / "worker_argv_fixture"
+    output_dir = evaluate.render_output_dir(run_root, case, variant)
+    variant_map = {row["variant"]: row for row in protocol["variants"]}
+    source_glb = Path(variant_map[variant]["cases"][case["asset_id"]]["glb_path"])
+    command = evaluate.build_blender_worker_command(
+        protocol,
+        run_root,
+        case,
+        variant,
+        source_glb,
+        output_dir,
+        script_path=PROJECT_ROOT / "scripts" / "phase2n_week2_evaluate_pilots.py",
+    )
+    return command, output_dir
+
+
+def test_generated_blender_worker_command_has_boundary_and_metadata(
+    tmp_path: Path,
+) -> None:
+    root, config_path = make_fixture(tmp_path)
+    protocol = evaluate.resolve_protocol(config_path, project_root=root)
+    command, output_dir = make_worker_command(protocol)
+
+    separator = command.index("--")
+    project_argv = evaluate.project_arguments(command[1:])
+    args = evaluate.parse_args(project_argv)
+
+    assert command[separator + 1] == "--_render-one"
+    assert command.index("--_render-one") > separator
+    assert "--config" in command[separator + 1 :]
+    assert "--worker-run-dir" in command[separator + 1 :]
+    assert args._render_one is True
+    assert args.worker_case_id == "B073P1D981"
+    assert args.worker_variant_id == evaluate.BASE_VARIANT
+    assert args.worker_eval_split == "val"
+    assert args.worker_source_split == "val"
+    assert args.output_dir == output_dir
+
+
+def test_blender_style_argv_routes_to_internal_worker_without_outer_action(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, config_path = make_fixture(tmp_path)
+    protocol = evaluate.resolve_protocol(config_path, project_root=root)
+    command, _ = make_worker_command(protocol)
+    captured = {}
+
+    def fake_worker(args):
+        captured["args"] = args
+        return 17
+
+    monkeypatch.setattr(evaluate, "blender_render_one", fake_worker)
+
+    assert evaluate.main(command[1:]) == 17
+    assert captured["args"].worker_case_id == "B073P1D981"
+    assert captured["args"].worker_variant_id == evaluate.BASE_VARIANT
+
+
+def test_ordinary_invocation_without_action_still_fails() -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        evaluate.main([])
+
+    assert exc_info.value.code == 2
+
+
+def test_outer_run_all_routing_is_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, config_path = make_fixture(tmp_path)
+    sentinel = {"protocol": True}
+    captured = {}
+
+    monkeypatch.setattr(evaluate, "resolve_protocol", lambda *args, **kwargs: sentinel)
+
+    def fake_execute(protocol, run_id, mode):
+        captured.update(protocol=protocol, run_id=run_id, mode=mode)
+        return 23
+
+    monkeypatch.setattr(evaluate, "execute_runtime", fake_execute)
+
+    result = evaluate.main(
+        ["--config", str(config_path), "--run-all", "--run-id", "new_run"]
+    )
+
+    assert result == 23
+    assert captured == {
+        "protocol": sentinel,
+        "run_id": "new_run",
+        "mode": "run_all",
+    }
+
+
 def synthetic_metric_rows(protocol: dict) -> list[dict]:
     rows = []
     leakage = set(protocol["config"]["leakage_risk_assets"])
