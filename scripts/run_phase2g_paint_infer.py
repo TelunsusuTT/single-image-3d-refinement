@@ -5,13 +5,26 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
 
 
-DEFAULT_HY21 = Path("/vol/bitbucket/ct1022/Hunyuan3D2.1_Work/src/Hunyuan3D-2.1")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = PROJECT_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+
+from hy3dft.hunyuan_inference import (  # noqa: E402
+    DEFAULT_HY21,
+    initialize_base_paint_pipeline,
+    prepend_pythonpath,
+    resolve_official_paths,
+    run_paint_inference,
+    set_absolute_official_config_paths,
+)
+
+
 FINETUNED_CHECKPOINT_PREFIX = "unet."
 FINETUNED_TARGET_PATH = "paint_pipeline.models['multiview_model'].pipeline.unet"
 
@@ -91,39 +104,6 @@ def run_dry_run(plan: dict[str, Any]) -> int:
     return 0
 
 
-def resolve_official_paths() -> tuple[Path, Path]:
-    hy21_env = os.environ.get("HY21", "")
-    hy21 = Path(hy21_env).expanduser() if hy21_env else DEFAULT_HY21
-    hy21 = hy21.resolve()
-
-    hypaint_env = os.environ.get("HYPAINT", "")
-    hypaint = Path(hypaint_env).expanduser() if hypaint_env else hy21 / "hy3dpaint"
-    hypaint = hypaint.resolve()
-
-    if not hy21.is_dir():
-        raise RuntimeError(f"HY21 path missing: {hy21}")
-    if not hypaint.is_dir():
-        raise RuntimeError(f"HYPAINT path missing: {hypaint}")
-    return hy21, hypaint
-
-
-def prepend_pythonpath(path: Path) -> None:
-    text = str(path)
-    if text not in sys.path:
-        sys.path.insert(0, text)
-
-
-def set_absolute_official_config_paths(conf: Any, hypaint: Path) -> dict[str, str]:
-    cfg_path = hypaint / "cfgs" / "hunyuan-paint-pbr.yaml"
-    realesrgan_path = hypaint / "ckpt" / "RealESRGAN_x4plus.pth"
-    conf.multiview_cfg_path = str(cfg_path)
-    conf.realesrgan_ckpt_path = str(realesrgan_path)
-    return {
-        "multiview_cfg_path": str(cfg_path),
-        "realesrgan_ckpt_path": str(realesrgan_path),
-    }
-
-
 def torch_load_cpu(torch_module: Any, checkpoint: Path) -> Any:
     try:
         return torch_module.load(checkpoint, map_location="cpu", weights_only=False)
@@ -199,8 +179,6 @@ def load_finetuned_checkpoint_into_pipeline(checkpoint: Path, paint_pipeline: An
 
 def run_real_inference(args: argparse.Namespace, plan: dict[str, Any]) -> int:
     hy21, hypaint = resolve_official_paths()
-    prepend_pythonpath(hy21)
-    prepend_pythonpath(hypaint)
 
     output_dir = Path(plan["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -208,21 +186,22 @@ def run_real_inference(args: argparse.Namespace, plan: dict[str, Any]) -> int:
     plan["resolved_hypaint"] = str(hypaint)
     write_plan(plan)
 
-    # Imports are intentionally inside the non-dry-run branch so tests and
-    # Codex preparation never import or execute Hunyuan.
-    from textureGenPipeline import Hunyuan3DPaintConfig, Hunyuan3DPaintPipeline  # type: ignore
-
-    conf = Hunyuan3DPaintConfig(args.max_num_view, args.resolution)
-    conf.device = args.device
-    plan.update(set_absolute_official_config_paths(conf, hypaint))
+    # The shared helper imports official modules only inside this real runtime
+    # branch. Dry-run and static tests remain Hunyuan/Torch free.
+    paint_pipeline, runtime_metadata = initialize_base_paint_pipeline(
+        max_num_view=args.max_num_view,
+        resolution=args.resolution,
+        device=args.device,
+    )
+    plan.update(runtime_metadata)
     write_plan(plan)
 
     print("Phase 2G real inference")
     print(f"  mode: {args.mode}")
     print(f"  HY21: {hy21}")
     print(f"  HYPAINT: {hypaint}")
-    print(f"  multiview_cfg_path: {conf.multiview_cfg_path}")
-    print(f"  realesrgan_ckpt_path: {conf.realesrgan_ckpt_path}")
+    print(f"  multiview_cfg_path: {plan['multiview_cfg_path']}")
+    print(f"  realesrgan_ckpt_path: {plan['realesrgan_ckpt_path']}")
     print(f"  mesh: {plan['input_mesh']}")
     print(f"  image: {plan['input_image']}")
     print(f"  checkpoint: {plan['checkpoint']}")
@@ -230,7 +209,6 @@ def run_real_inference(args: argparse.Namespace, plan: dict[str, Any]) -> int:
     print(f"  planned_output_glb: {plan['planned_output_glb']}")
     print(f"  use_remesh: {plan['use_remesh']}")
 
-    paint_pipeline = Hunyuan3DPaintPipeline(conf)
     if args.mode == "finetuned":
         if args.checkpoint is None:
             raise RuntimeError("--checkpoint is required for --mode finetuned")
@@ -242,7 +220,8 @@ def run_real_inference(args: argparse.Namespace, plan: dict[str, Any]) -> int:
         print(f"  target_key_count: {load_summary['target_key_count']}")
         print("PHASE2G5_FINETUNED_CHECKPOINT_LOADED_OK")
 
-    result = paint_pipeline(
+    result = run_paint_inference(
+        paint_pipeline,
         mesh_path=plan["input_mesh"],
         image_path=plan["input_image"],
         output_mesh_path=plan["planned_output_mesh"],

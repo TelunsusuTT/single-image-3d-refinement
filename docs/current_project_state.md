@@ -2,17 +2,17 @@
 
 ## Summary
 
-The project is in the focused Phase 2N Week 2 runner repair after failed pilot
-job `264014`. Week 1 Days 1-5 are complete, and the Day 5 A100 runtime/numeric
-audits still authorize the reviewed learning rates and runtime limits. The first
-Week 2 attempt completed no valid optimizer update and produced no usable
-checkpoint.
+The project is in Phase 2N Week 2 scope-checkpoint pilot inference development
+and readiness. Week 1 Days 1-5 are complete, and controlled Week 2 training run
+`slurm_264123` completed successfully. Its PC-S1 and PC-Full step-160 and
+step-320 trainable-scope-only checkpoints have been audited without loading
+them.
 
 Phase 2M refview+DINO LoRA is complete and negative on held-out cases. Phase 2N
 now has a protocol-corrected no-augmentation reader, exact PC-S1 and PC-Full
 scope helpers, optimizer/scheduler guards, successful real-model Day 5
-evidence, and an MVA-active deterministic schedule gate. No repaired Week 2 run
-has started.
+evidence, an MVA-active deterministic schedule, and completed controlled pilot
+training. No Week 2 checkpoint-quality conclusion exists yet.
 
 ## Initialization Fix
 
@@ -90,7 +90,17 @@ production-loss seeds. It has 320 MVA-active records, zero inactive records,
 and 50 records with at least one retry. The same accepted schedule drives both
 scopes; Day 3 reference/light decisions, no augmentation, data, learning rates,
 warmup, checkpoint steps, scopes, and the frozen six-validation/two-train-sanity
-evaluation cases remain unchanged. Test data remains excluded.
+evaluation cases remain unchanged. The repaired controlled run completed under
+`outputs/phase2n/week2_pilot_training/slurm_264123` and retained four audited
+scope-only checkpoints: PC-S1 and PC-Full at updates 160 and 320.
+
+The current task prepares one idempotent A100 inference workflow for those four
+variants. Each variant must be reconstructed on a newly loaded identical
+official true-PBR base and evaluated on the already frozen six validation and
+two train-sanity cases with view 005, AL lighting, and fixed-mesh/no-remesh
+inference. Existing corrected-input base and historical full80 outputs cover
+all eight cases and will be reused rather than rerun. Test data remains
+excluded from readiness, inference, and model selection.
 
 ## No Full80-1000 Yet
 
@@ -100,9 +110,9 @@ is mixed, and visual boards still show leakage/ambiguity.
 
 ## Current Decision
 
-Complete local validation of the audited MVA-active schedule repair. Keep the
-strict zero-gradient guard: an accepted MVA-active PC-S1 seed that still yields
-zero gradient must fail. After assistant and user review, rerun PC-S1 first and
-PC-Full second from fresh identical true-PBR bases under a completely new Slurm
-job ID. Never resume or overwrite `slurm_264014`, and do not use the test split
-for selection.
+Complete local validation and review of the Week 2 scope-checkpoint inference
+workflow. After manual A100 inference, use the later Blender/rendered-view stage
+to compare PC-S1 and PC-Full steps 160/320 against the reused corrected-input
+base and historical full80 result. Training loss alone must not select a
+checkpoint. No Week 2 quality claim should be made before that evidence exists,
+and the test split must remain untouched.
