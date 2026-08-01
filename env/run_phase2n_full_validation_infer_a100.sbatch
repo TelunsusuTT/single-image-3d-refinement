@@ -1,0 +1,90 @@
+#!/bin/bash
+#SBATCH -p a100
+#SBATCH --gres=gpu:1
+#SBATCH --job-name=phase2n-full-validation-infer
+#SBATCH --chdir=/vol/bitbucket/ct1022/hy3dpaint_finetune
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64G
+#SBATCH --time=04:00:00
+#SBATCH --output=/vol/bitbucket/ct1022/hy3dpaint_finetune/logs/slurm/phase2n-full-validation-infer-%j.out
+#SBATCH --error=/vol/bitbucket/ct1022/hy3dpaint_finetune/logs/slurm/phase2n-full-validation-infer-%j.err
+
+set -eo pipefail
+
+echo "===== JOB START ====="
+date
+hostname
+
+source /vol/bitbucket/ct1022/hy3dpaint_finetune/env/env.sh
+conda activate "$ENV_NAME"
+
+CUDA_SETUP=/vol/cuda/12.4.0/setup.sh
+if [[ ! -f "$CUDA_SETUP" ]]; then
+  echo "CUDA 12.4 setup is missing: $CUDA_SETUP" >&2
+  exit 1
+fi
+source "$CUDA_SETUP"
+export CUDA_HOME=/vol/cuda/12.4.0
+
+export JOB_TMPDIR="/tmp/${USER}/phase2n_full_validation_infer_${SLURM_JOB_ID:-manual}"
+mkdir -p "$JOB_TMPDIR"
+export TMPDIR="$JOB_TMPDIR"
+export TEMP="$JOB_TMPDIR"
+export TMP="$JOB_TMPDIR"
+export PYTHONDONTWRITEBYTECODE=1
+export PYTHONPATH="$PROJ/src:$PROJ/scripts${PYTHONPATH:+:$PYTHONPATH}"
+
+CONFIG="$PROJ/configs/phase2n_full_validation_inference.json"
+RUN_ID="phase2n_full_validation_infer_v1"
+RUN_DIR="$PROJ/outputs/phase2n/full_validation_inference/$RUN_ID"
+
+mkdir -p "$PROJ/logs/slurm"
+
+echo "===== ENVIRONMENT ====="
+echo "PROJ=$PROJ"
+echo "HY21=$HY21"
+echo "HYPAINT=$HYPAINT"
+echo "ENV_NAME=$ENV_NAME"
+echo "CUDA_HOME=$CUDA_HOME"
+echo "PYTHONPATH=$PYTHONPATH"
+echo "TMPDIR=$TMPDIR"
+echo "CONFIG=$CONFIG"
+echo "RUN_DIR=$RUN_DIR"
+
+echo "===== NVIDIA SMI ====="
+nvidia-smi
+
+echo "===== GIT HEAD ====="
+git -C "$PROJ" rev-parse HEAD
+
+echo "===== DISK USAGE ====="
+df -h "$PROJ" /tmp
+
+echo "===== FULL-VALIDATION SPLIT AND REUSE AUDIT ====="
+python "$PROJ/scripts/phase2n_build_full_validation_manifest.py" \
+  --config "$PROJ/configs/phase2n_full_validation_manifest.json" \
+  --check-only
+
+echo "===== INFERENCE READINESS ====="
+python "$PROJ/scripts/phase2n_week2_infer_pilots.py" \
+  --config "$CONFIG" \
+  --check-only
+
+echo "===== TWO-CANDIDATE FOUR-ASSET INFERENCE ====="
+python "$PROJ/scripts/phase2n_week2_infer_pilots.py" \
+  --config "$CONFIG" \
+  --run-all \
+  --run-id "$RUN_ID"
+
+GLB_COUNT=$(find "$RUN_DIR" -type f -name textured_mesh.glb | wc -l)
+if [[ "$GLB_COUNT" -ne 8 ]]; then
+  echo "Expected exactly 8 new GLBs, found $GLB_COUNT" >&2
+  exit 1
+fi
+test -s "$RUN_DIR/pc_s1_step160/_SUCCESS"
+test -s "$RUN_DIR/pc_full_step320/_SUCCESS"
+test -s "$RUN_DIR/_SUCCESS"
+
+echo "new_glb_count=$GLB_COUNT"
+echo "===== JOB END: SUCCESS ====="
+date

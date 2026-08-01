@@ -23,18 +23,25 @@ import subprocess
 import sys
 import zlib
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Mapping
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "phase2n_week2_pilot_rendered_eval.json"
 EXPECTED_PHASE = "phase2n_week2_pilot_rendered_eval"
+FULL_VALIDATION_PHASE = "phase2n_full_validation_rendered_eval"
 EXPECTED_VARIANTS = [
     "corrected_input_base",
     "historical_full80_500",
     "pc_s1_step160",
     "pc_s1_step320",
     "pc_full_step160",
+    "pc_full_step320",
+]
+FULL_VALIDATION_VARIANTS = [
+    "corrected_input_base",
+    "historical_full80_500",
+    "pc_s1_step160",
     "pc_full_step320",
 ]
 EXPECTED_CASE_IDS = [
@@ -55,6 +62,7 @@ EXPECTED_VIEW_GROUPS = {
     "nonfront_000_003": ["000", "001", "002", "003"],
 }
 EXPECTED_SPLIT_COUNTS = {"val": 6, "train_sanity": 2, "test": 0}
+FULL_VALIDATION_SPLIT_COUNTS = {"val": 10, "train_sanity": 0, "test": 0}
 BASE_VARIANT = "corrected_input_base"
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -62,6 +70,50 @@ PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 class EvaluationError(RuntimeError):
     """Raised when the frozen evaluation protocol is not satisfied."""
+
+
+def is_full_validation_config(config: Mapping[str, Any]) -> bool:
+    return config.get("phase") == FULL_VALIDATION_PHASE
+
+
+def expected_variants(config: Mapping[str, Any]) -> list[str]:
+    return FULL_VALIDATION_VARIANTS if is_full_validation_config(config) else EXPECTED_VARIANTS
+
+
+def expected_split_counts(config: Mapping[str, Any]) -> dict[str, int]:
+    return (
+        FULL_VALIDATION_SPLIT_COUNTS
+        if is_full_validation_config(config)
+        else EXPECTED_SPLIT_COUNTS
+    )
+
+
+def protocol_variants(protocol: Mapping[str, Any]) -> list[str]:
+    return expected_variants(protocol["config"])
+
+
+def protocol_phase(protocol: Mapping[str, Any]) -> str:
+    return str(protocol["config"]["phase"])
+
+
+def runtime_token(config: Mapping[str, Any], stage: str) -> str:
+    if is_full_validation_config(config):
+        return {
+            "render": "PHASE2N_FULL_VALIDATION_RENDER_STAGE_OK",
+            "metrics": "PHASE2N_FULL_VALIDATION_METRICS_STAGE_OK",
+            "boards": "PHASE2N_FULL_VALIDATION_BOARDS_STAGE_OK",
+            "complete": "PHASE2N_FULL_VALIDATION_RENDERED_EVAL_OK",
+            "success_file": "PHASE2N_FULL_VALIDATION_RENDERED_EVAL_SUCCESS",
+            "worker": "PHASE2N_FULL_VALIDATION_RENDER_ONE_OK",
+        }[stage]
+    return {
+        "render": "PHASE2N_WEEK2_RENDER_STAGE_OK",
+        "metrics": "PHASE2N_WEEK2_METRICS_STAGE_OK",
+        "boards": "PHASE2N_WEEK2_BOARDS_STAGE_OK",
+        "complete": "PHASE2N_WEEK2_RENDERED_EVAL_OK",
+        "success_file": "PHASE2N_WEEK2_RENDERED_EVAL_SUCCESS",
+        "worker": "PHASE2N_WEEK2_RENDER_ONE_OK",
+    }[stage]
 
 
 def resolve_project_path(path_text: str | Path, project_root: Path = PROJECT_ROOT) -> Path:
@@ -167,12 +219,14 @@ def validate_png(path: Path, expected_resolution: int | None = None) -> tuple[in
 
 
 def validate_exact_protocol_config(config: dict[str, Any]) -> None:
-    if config.get("phase") != EXPECTED_PHASE:
+    phase = config.get("phase")
+    if phase not in {EXPECTED_PHASE, FULL_VALIDATION_PHASE}:
         raise EvaluationError(
-            f"config phase must be {EXPECTED_PHASE!r}, got {config.get('phase')!r}"
+            f"unsupported rendered-evaluation phase: {phase!r}"
         )
-    if config.get("variant_order") != EXPECTED_VARIANTS:
-        raise EvaluationError("variant_order does not match the frozen six-variant order")
+    variants = expected_variants(config)
+    if config.get("variant_order") != variants:
+        raise EvaluationError("variant_order does not match the frozen phase profile")
     if config.get("view_ids") != EXPECTED_VIEW_IDS:
         raise EvaluationError("view_ids must be exactly 000 through 005")
     if config.get("view_groups") != EXPECTED_VIEW_GROUPS:
@@ -186,8 +240,11 @@ def validate_exact_protocol_config(config: dict[str, Any]) -> None:
     if config.get("isolated_blender_process_per_glb") is not True:
         raise EvaluationError("isolated_blender_process_per_glb must be true")
     sources = config.get("variant_sources")
-    if not isinstance(sources, dict) or list(sources) != EXPECTED_VARIANTS:
-        raise EvaluationError("variant_sources must preserve the exact six-variant order")
+    if not isinstance(sources, dict) or list(sources) != variants:
+        raise EvaluationError("variant_sources must preserve the exact phase variant order")
+    if is_full_validation_config(config):
+        if any(source != {"kind": "full_validation_manifest"} for source in sources.values()):
+            raise EvaluationError("full validation sources must use the audited manifest")
 
 
 def validate_frozen_cases(
@@ -367,6 +424,85 @@ def resolve_variant_glbs(
     return resolved
 
 
+def load_full_validation_builder(project_root: Path) -> Any:
+    source = project_root / "scripts" / "phase2n_build_full_validation_manifest.py"
+    spec = importlib.util.spec_from_file_location("_phase2n_full_validation_manifest_eval", source)
+    if spec is None or spec.loader is None:
+        raise EvaluationError(f"could not load full-validation manifest builder: {source}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def resolve_full_validation_manifest(
+    config: dict[str, Any],
+    manifest_config_path: Path,
+    project_root: Path,
+    validate_files: bool,
+) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
+    builder = load_full_validation_builder(project_root)
+    try:
+        manifest = builder.build_manifest(
+            manifest_config_path,
+            project_root,
+            require_new_outputs=validate_files,
+            validate_files=validate_files,
+        )
+    except Exception as exc:
+        raise EvaluationError(f"full-validation manifest resolution failed: {exc}") from exc
+    if manifest.get("validation_ids") != config.get("leakage_risk_assets"):
+        raise EvaluationError("full-validation case order differs from the canonical validation split")
+    if manifest.get("split_counts") != FULL_VALIDATION_SPLIT_COUNTS:
+        raise EvaluationError("full-validation manifest is not val-only 10/0/0")
+    cases = [
+        {
+            "asset_id": row["asset_id"],
+            "eval_split": "val",
+            "source_split": "val",
+            "selection_stratum": "full_validation",
+            "selection_rationale": "Canonical full101 validation split.",
+            "selected_input_view": "005",
+            "reference_lighting": "AL",
+            "reference_images": dict(row["reference_paths"]),
+        }
+        for row in manifest["cases"]
+    ]
+    source_index = {
+        (row["variant_id"], row["asset_id"]): row
+        for row in manifest["source_records"]
+    }
+    variants: list[dict[str, Any]] = []
+    for variant in FULL_VALIDATION_VARIANTS:
+        per_case = {}
+        for case in cases:
+            key = (variant, case["asset_id"])
+            row = source_index.get(key)
+            if row is None:
+                raise EvaluationError(f"missing full-validation source record: {variant}/{case['asset_id']}")
+            glb = Path(row["source_path"])
+            if validate_files:
+                validate_nonempty_file(glb, f"source GLB {variant}/{case['asset_id']}")
+                if glb.suffix.lower() != ".glb":
+                    raise EvaluationError(f"source is not a GLB: {glb}")
+            per_case[case["asset_id"]] = {
+                "glb_path": str(glb),
+                "source_manifest": row["source_manifest"],
+                "source_kind": "full_validation_manifest",
+                "reuse_status": row["reuse_status"],
+                **({"byte_size": glb.stat().st_size} if validate_files else {}),
+            }
+        variants.append(
+            {
+                "variant": variant,
+                "source_kind": "full_validation_manifest",
+                "cases": per_case,
+            }
+        )
+    if len(source_index) != 40:
+        raise EvaluationError("full-validation manifest must resolve exactly 40 source GLBs")
+    return manifest, cases, variants
+
+
 def validate_helpers(config: dict[str, Any], project_root: Path) -> tuple[Path, Path]:
     renderer = resolve_project_path(config["stable_renderer_script"], project_root)
     metrics = resolve_project_path(config["stable_metrics_script"], project_root)
@@ -400,11 +536,12 @@ def build_plan(
     cases: list[dict[str, Any]],
     variants: list[dict[str, Any]],
     view_ids: list[str],
+    variant_order: Iterable[str] = EXPECTED_VARIANTS,
 ) -> list[dict[str, Any]]:
     variant_map = {row["variant"]: row for row in variants}
     rows: list[dict[str, Any]] = []
     for case in cases:
-        for variant in EXPECTED_VARIANTS:
+        for variant in variant_order:
             source = variant_map[variant]["cases"][case["asset_id"]]
             for view_id in view_ids:
                 rows.append(
@@ -432,29 +569,43 @@ def resolve_protocol(
     inference_run_dir = resolve_project_path(config["inference_run_dir"], project_root)
     frozen_path = resolve_project_path(config["frozen_cases_config"], project_root)
     output_root = resolve_project_path(config["output_root"], project_root)
-    validate_nonempty_file(inference_run_dir / "_SUCCESS", "Stage 4 success token")
-    frozen = load_json(frozen_path)
-    cases = validate_frozen_cases(
-        frozen,
-        list(config["view_ids"]),
-        str(config["reference_lighting"]),
-        project_root,
-        validate_files,
-    )
-    variants = resolve_variant_glbs(
-        config,
-        cases,
-        inference_run_dir,
-        project_root,
-        validate_files,
-    )
+    resolved_manifest = None
+    if is_full_validation_config(config):
+        resolved_manifest, cases, variants = resolve_full_validation_manifest(
+            config,
+            frozen_path,
+            project_root,
+            validate_files,
+        )
+    else:
+        validate_nonempty_file(inference_run_dir / "_SUCCESS", "Stage 4 success token")
+        frozen = load_json(frozen_path)
+        cases = validate_frozen_cases(
+            frozen,
+            list(config["view_ids"]),
+            str(config["reference_lighting"]),
+            project_root,
+            validate_files,
+        )
+        variants = resolve_variant_glbs(
+            config,
+            cases,
+            inference_run_dir,
+            project_root,
+            validate_files,
+        )
     renderer, metrics = validate_helpers(config, project_root)
     blender = resolve_project_path(config["blender_bin"], project_root)
     if validate_files:
         if not blender.is_file() or not os.access(blender, os.X_OK):
             raise EvaluationError(f"Blender executable is missing or not executable: {blender}")
     validate_output_root(output_root, inference_run_dir, project_root)
-    plan = build_plan(cases, variants, list(config["view_ids"]))
+    plan = build_plan(
+        cases,
+        variants,
+        list(config["view_ids"]),
+        expected_variants(config),
+    )
     expected = config.get("expected_counts", {})
     actual = {
         "cases": len(cases),
@@ -481,21 +632,31 @@ def resolve_protocol(
         "variants": variants,
         "plan": plan,
         "counts": actual,
+        "resolved_full_validation_manifest": resolved_manifest,
     }
 
 
 def run_check_only(config_path: Path, project_root: Path = PROJECT_ROOT) -> dict[str, Any]:
     protocol = resolve_protocol(config_path, project_root=project_root, validate_files=True)
-    print("Phase 2N Week 2 rendered-view evaluation readiness")
-    print(f"  variants: {', '.join(EXPECTED_VARIANTS)}")
+    config = protocol["config"]
+    title = (
+        "Phase 2N full-validation rendered-view evaluation readiness"
+        if is_full_validation_config(config)
+        else "Phase 2N Week 2 rendered-view evaluation readiness"
+    )
+    print(title)
+    print(f"  variants: {', '.join(expected_variants(config))}")
     print(f"  cases: {', '.join(case['asset_id'] for case in protocol['cases'])}")
     print(f"  source_glbs: {protocol['counts']['source_glbs']}")
     print(f"  references: {protocol['counts']['references']}")
     print(f"  planned_renders: {protocol['counts']['planned_renders']}")
-    print("PHASE2N_WEEK2_RENDER_INPUTS_OK")
-    print("PHASE2N_WEEK2_RENDER_PROTOCOL_OK")
-    print("PHASE2N_WEEK2_NO_TEST_OK")
-    print("PHASE2N_WEEK2_RENDERED_EVAL_READINESS_OK")
+    if is_full_validation_config(config):
+        print("PHASE2N_FULL_VALIDATION_RENDERED_EVAL_READINESS_OK")
+    else:
+        print("PHASE2N_WEEK2_RENDER_INPUTS_OK")
+        print("PHASE2N_WEEK2_RENDER_PROTOCOL_OK")
+        print("PHASE2N_WEEK2_NO_TEST_OK")
+        print("PHASE2N_WEEK2_RENDERED_EVAL_READINESS_OK")
     return protocol
 
 
@@ -548,7 +709,7 @@ def validate_render_inventory(
     states = {"complete": 0, "missing": 0, "inconsistent": 0}
     units: list[dict[str, str]] = []
     for case in protocol["cases"]:
-        for variant in EXPECTED_VARIANTS:
+        for variant in protocol_variants(protocol):
             output_dir = render_output_dir(run_root, case, variant)
             state = render_unit_state(output_dir, view_ids, resolution)
             states[state] += 1
@@ -577,7 +738,7 @@ def runtime_manifest(protocol: dict[str, Any], run_id: str) -> dict[str, Any]:
     source_inventory = []
     variant_map = {row["variant"]: row for row in protocol["variants"]}
     for case in protocol["cases"]:
-        for variant in EXPECTED_VARIANTS:
+        for variant in protocol_variants(protocol):
             item = variant_map[variant]["cases"][case["asset_id"]]
             glb = Path(item["glb_path"])
             source_inventory.append(
@@ -590,17 +751,17 @@ def runtime_manifest(protocol: dict[str, Any], run_id: str) -> dict[str, Any]:
                 }
             )
     return {
-        "phase": EXPECTED_PHASE,
+        "phase": protocol_phase(protocol),
         "run_id": run_id,
         "config_path": protocol["config_path"],
         "config_sha256": sha256_file(Path(protocol["config_path"])),
         "frozen_cases_path": protocol["frozen_cases_path"],
         "frozen_cases_sha256": sha256_file(Path(protocol["frozen_cases_path"])),
         "inference_run_dir": protocol["inference_run_dir"],
-        "variant_order": EXPECTED_VARIANTS,
+        "variant_order": protocol_variants(protocol),
         "case_order": [case["asset_id"] for case in protocol["cases"]],
-        "view_ids": EXPECTED_VIEW_IDS,
-        "view_groups": EXPECTED_VIEW_GROUPS,
+        "view_ids": list(protocol["config"]["view_ids"]),
+        "view_groups": dict(protocol["config"]["view_groups"]),
         "render_resolution": int(protocol["config"]["render_resolution"]),
         "background_color": list(protocol["config"]["background_color"]),
         "stable_renderer_script": protocol["stable_renderer_script"],
@@ -614,9 +775,9 @@ def runtime_manifest(protocol: dict[str, Any], run_id: str) -> dict[str, Any]:
 
 def resolved_cases_document(protocol: dict[str, Any]) -> dict[str, Any]:
     return {
-        "phase": EXPECTED_PHASE,
+        "phase": protocol_phase(protocol),
         "case_count": len(protocol["cases"]),
-        "split_counts": EXPECTED_SPLIT_COUNTS,
+        "split_counts": expected_split_counts(protocol["config"]),
         "selected_input_view": "005",
         "reference_lighting": "AL",
         "test_data_used": False,
@@ -626,9 +787,9 @@ def resolved_cases_document(protocol: dict[str, Any]) -> dict[str, Any]:
 
 def resolved_variants_document(protocol: dict[str, Any]) -> dict[str, Any]:
     return {
-        "phase": EXPECTED_PHASE,
+        "phase": protocol_phase(protocol),
         "variant_count": len(protocol["variants"]),
-        "variant_order": EXPECTED_VARIANTS,
+        "variant_order": protocol_variants(protocol),
         "source_glb_count": protocol["counts"]["source_glbs"],
         "variants": protocol["variants"],
     }
@@ -711,11 +872,26 @@ def blender_render_one(args: argparse.Namespace) -> int:
     variant = str(args.worker_variant_id)
     eval_split = str(args.worker_eval_split)
     source_split = str(args.worker_source_split)
-    if case_id not in EXPECTED_CASE_IDS:
+    if is_full_validation_config(worker_config):
+        manifest_config = resolve_project_path(
+            worker_config["frozen_cases_config"], config_path.parents[1]
+        )
+        builder = load_full_validation_builder(config_path.parents[1])
+        resolved = builder.build_manifest(
+            manifest_config,
+            config_path.parents[1],
+            require_new_outputs=True,
+            validate_files=True,
+        )
+        allowed_case_ids = resolved["validation_ids"]
+    else:
+        allowed_case_ids = EXPECTED_CASE_IDS
+    if case_id not in allowed_case_ids:
         raise EvaluationError(f"unexpected internal worker case ID: {case_id}")
-    if variant not in EXPECTED_VARIANTS:
+    if variant not in expected_variants(worker_config):
         raise EvaluationError(f"unexpected internal worker variant ID: {variant}")
-    if eval_split not in {"val", "train_sanity"}:
+    allowed_splits = {"val"} if is_full_validation_config(worker_config) else {"val", "train_sanity"}
+    if eval_split not in allowed_splits:
         raise EvaluationError(f"unexpected internal worker eval split: {eval_split}")
     expected_source_split = "val" if eval_split == "val" else "train"
     if source_split != expected_source_split:
@@ -777,7 +953,7 @@ def blender_render_one(args: argparse.Namespace) -> int:
     }
     write_json_atomic(output_dir / "render_report.json", report)
     print(f"rendered isolated GLB: {case_id}/{variant}: {input_glb}")
-    print("PHASE2N_WEEK2_RENDER_ONE_OK")
+    print(runtime_token(worker_config, "worker"))
     return 0
 
 
@@ -835,7 +1011,7 @@ def run_render_stage(protocol: dict[str, Any], run_root: Path) -> dict[str, Any]
     variant_map = {row["variant"]: row for row in protocol["variants"]}
     rows: list[dict[str, Any]] = []
     for case in protocol["cases"]:
-        for variant in EXPECTED_VARIANTS:
+        for variant in protocol_variants(protocol):
             output_dir = render_output_dir(run_root, case, variant)
             state = render_unit_state(output_dir, view_ids, resolution)
             if state == "inconsistent":
@@ -900,7 +1076,7 @@ def run_render_stage(protocol: dict[str, Any], run_root: Path) -> dict[str, Any]
             print(f"rendered: {case['asset_id']}/{variant}")
     final_inventory = validate_render_inventory(protocol, run_root, require_all=True)
     summary = {
-        "phase": EXPECTED_PHASE,
+        "phase": protocol_phase(protocol),
         "status": "OK",
         "isolated_blender_process_per_glb": True,
         "unit_count": len(rows),
@@ -909,7 +1085,7 @@ def run_render_stage(protocol: dict[str, Any], run_root: Path) -> dict[str, Any]
         "rows": rows,
     }
     write_json_atomic(run_root / "render_summary.json", summary)
-    print("PHASE2N_WEEK2_RENDER_STAGE_OK")
+    print(runtime_token(config, "render"))
     return summary
 
 
@@ -951,7 +1127,7 @@ def compute_metric_rows(
             if base.size != reference.size:
                 base = base.resize(reference.size, Image.Resampling.BICUBIC)
             base_reference = pair_metrics(reference, base, background_rgb)
-            for variant in EXPECTED_VARIANTS:
+            for variant in protocol_variants(protocol):
                 candidate_path = (
                     render_output_dir(run_root, case, variant) / f"{view_id}.png"
                 )
@@ -1127,26 +1303,30 @@ def build_aggregate_artifacts(
     protocol: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     config = protocol["config"]
+    variants = protocol_variants(protocol)
+    split_names = [
+        split for split, count in expected_split_counts(config).items() if count > 0
+    ]
     leakage_assets = set(config["leakage_risk_assets"])
     by_variant = {
         variant: summarize_rows(rows_for(rows, variant=variant))
-        for variant in EXPECTED_VARIANTS
+        for variant in variants
     }
     by_split = {
         split: {
             variant: summarize_rows(rows_for(rows, variant=variant, split=split))
-            for variant in EXPECTED_VARIANTS
+            for variant in variants
         }
-        for split in ("val", "train_sanity")
+        for split in split_names
     }
     by_view_group = {
         group: {
             variant: summarize_rows(
                 rows_for(rows, variant=variant, view_group=group)
             )
-            for variant in EXPECTED_VARIANTS
+            for variant in variants
         }
-        for group in EXPECTED_VIEW_GROUPS
+        for group in config["view_groups"]
     }
     by_asset = {
         case["asset_id"]: {
@@ -1156,7 +1336,7 @@ def build_aggregate_artifacts(
                 variant: summarize_rows(
                     rows_for(rows, variant=variant, asset_id=case["asset_id"])
                 )
-                for variant in EXPECTED_VARIANTS
+                for variant in variants
             },
             "front_004_005": {
                 variant: summarize_rows(
@@ -1167,7 +1347,7 @@ def build_aggregate_artifacts(
                         view_group="front_004_005",
                     )
                 )
-                for variant in EXPECTED_VARIANTS
+                for variant in variants
             },
             "nonfront_000_003": {
                 variant: summarize_rows(
@@ -1178,7 +1358,7 @@ def build_aggregate_artifacts(
                         view_group="nonfront_000_003",
                     )
                 )
-                for variant in EXPECTED_VARIANTS
+                for variant in variants
             },
         }
         for case in protocol["cases"]
@@ -1188,9 +1368,9 @@ def build_aggregate_artifacts(
             variant: summarize_rows(
                 rows_for(rows, variant=variant, view_id=view_id)
             )
-            for variant in EXPECTED_VARIANTS
+            for variant in variants
         }
-        for view_id in EXPECTED_VIEW_IDS
+        for view_id in config["view_ids"]
     }
     leakage_subset = {
         "asset_ids": list(config["leakage_risk_assets"]),
@@ -1198,7 +1378,7 @@ def build_aggregate_artifacts(
             variant: summarize_rows(
                 rows_for(rows, variant=variant, split="val", asset_ids=leakage_assets)
             )
-            for variant in EXPECTED_VARIANTS
+            for variant in variants
         },
         "nonfront_000_003": {
             variant: summarize_rows(
@@ -1210,7 +1390,7 @@ def build_aggregate_artifacts(
                     asset_ids=leakage_assets,
                 )
             )
-            for variant in EXPECTED_VARIANTS
+            for variant in variants
         },
         "per_asset_nonfront": {
             asset_id: {
@@ -1223,13 +1403,13 @@ def build_aggregate_artifacts(
                         asset_id=asset_id,
                     )
                 )
-                for variant in EXPECTED_VARIANTS
+                for variant in variants
             }
             for asset_id in config["leakage_risk_assets"]
         },
     }
     evidence: dict[str, Any] = {}
-    for variant in EXPECTED_VARIANTS[1:]:
+    for variant in variants[1:]:
         val_all = summarize_rows(rows_for(rows, variant=variant, split="val"))
         val_front = summarize_rows(
             rows_for(
@@ -1278,12 +1458,12 @@ def build_aggregate_artifacts(
             "train_sanity_mean_better_than_base": mean_better(train_sanity),
         }
     aggregate = {
-        "phase": EXPECTED_PHASE,
-        "status": "OK" if len(rows) == 288 else "FAIL",
+        "phase": protocol_phase(protocol),
+        "status": "OK" if len(rows) == protocol["counts"]["planned_renders"] else "FAIL",
         "row_count": len(rows),
         "case_count": len(protocol["cases"]),
-        "variant_order": EXPECTED_VARIANTS,
-        "view_ids": EXPECTED_VIEW_IDS,
+        "variant_order": variants,
+        "view_ids": list(config["view_ids"]),
         "by_variant": by_variant,
         "by_split": by_split,
         "by_view_group": by_view_group,
@@ -1296,7 +1476,7 @@ def build_aggregate_artifacts(
         "test_data_used": False,
     }
     per_asset = {
-        "phase": EXPECTED_PHASE,
+        "phase": protocol_phase(protocol),
         "asset_count": len(by_asset),
         "assets": by_asset,
     }
@@ -1325,8 +1505,13 @@ def write_metric_rows(metrics_dir: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def aggregate_markdown(aggregate: dict[str, Any]) -> str:
+    full_validation = aggregate["phase"] == FULL_VALIDATION_PHASE
     lines = [
-        "# Phase 2N Week 2 Pilot Rendered-View Aggregate",
+        (
+            "# Phase 2N Full Validation Rendered-View Aggregate"
+            if full_validation
+            else "# Phase 2N Week 2 Pilot Rendered-View Aggregate"
+        ),
         "",
         f"status: `{aggregate['status']}`",
         f"rows: `{aggregate['row_count']}`",
@@ -1342,7 +1527,7 @@ def aggregate_markdown(aggregate: dict[str, Any]) -> str:
         "|---|---:|---:|---|---:|---|---|---:|---|---:|",
     ]
     evidence = aggregate["candidate_evidence_relative_to_corrected_input_base"]
-    for variant in EXPECTED_VARIANTS[1:]:
+    for variant in aggregate["variant_order"][1:]:
         row = evidence[variant]
         lines.append(
             f"| `{variant}` | `{row['mean_delta_mae']}` | "
@@ -1373,7 +1558,7 @@ def run_metrics_stage(protocol: dict[str, Any], run_root: Path) -> dict[str, Any
     write_json_atomic(metrics_dir / "per_asset.json", per_asset)
     write_json_atomic(metrics_dir / "aggregate.json", aggregate)
     write_text_atomic(metrics_dir / "aggregate.md", aggregate_markdown(aggregate))
-    print("PHASE2N_WEEK2_METRICS_STAGE_OK")
+    print(runtime_token(protocol["config"], "metrics"))
     return aggregate
 
 
@@ -1401,7 +1586,7 @@ def make_one_board(
     _, _, diff_image = load_stable_metric_helpers(
         Path(protocol["stable_metrics_script"])
     )
-    columns = ["reference", *EXPECTED_VARIANTS]
+    columns = ["reference", *protocol_variants(protocol)]
     tile = (170, 170)
     header_height = 58
     row_label_height = 24
@@ -1507,15 +1692,15 @@ def run_boards_stage(protocol: dict[str, Any], run_root: Path) -> dict[str, Any]
             }
         )
     summary = {
-        "phase": EXPECTED_PHASE,
+        "phase": protocol_phase(protocol),
         "status": "OK",
         "asset_count": len(rows),
         "board_count": len(rows) * 2,
-        "columns": ["reference", *EXPECTED_VARIANTS],
+        "columns": ["reference", *protocol_variants(protocol)],
         "rows": rows,
     }
     write_json_atomic(run_root / "boards" / "board_summary.json", summary)
-    print("PHASE2N_WEEK2_BOARDS_STAGE_OK")
+    print(runtime_token(protocol["config"], "boards"))
     return summary
 
 
@@ -1561,8 +1746,11 @@ def validate_complete_run(
     for path in required_final_paths(run_root, protocol):
         validate_nonempty_file(path, "final evaluation artifact")
     aggregate = load_json(run_root / "metrics" / "aggregate.json")
-    if aggregate.get("status") != "OK" or aggregate.get("row_count") != 288:
-        raise EvaluationError("aggregate metrics are not a complete 288-row result")
+    expected_rows = protocol["counts"]["planned_renders"]
+    if aggregate.get("status") != "OK" or aggregate.get("row_count") != expected_rows:
+        raise EvaluationError(
+            f"aggregate metrics are not a complete {expected_rows}-row result"
+        )
     if aggregate.get("test_data_used") is not False:
         raise EvaluationError("aggregate metrics indicate test data use")
     if require_success_token:
@@ -1575,16 +1763,20 @@ def finalize_run(
     aggregate: dict[str, Any],
     board_summary: dict[str, Any],
 ) -> dict[str, Any]:
+    config = protocol["config"]
+    variants = protocol_variants(protocol)
+    counts = protocol["counts"]
+    full_validation = is_full_validation_config(config)
     summary = {
-        "phase": EXPECTED_PHASE,
+        "phase": protocol_phase(protocol),
         "status": "OK",
         "run_id": run_root.name,
-        "variant_order": EXPECTED_VARIANTS,
+        "variant_order": variants,
         "case_order": [case["asset_id"] for case in protocol["cases"]],
-        "split_counts": EXPECTED_SPLIT_COUNTS,
-        "view_ids": EXPECTED_VIEW_IDS,
-        "source_glb_count": 48,
-        "rendered_png_count": 288,
+        "split_counts": expected_split_counts(config),
+        "view_ids": list(config["view_ids"]),
+        "source_glb_count": counts["source_glbs"],
+        "rendered_png_count": counts["planned_renders"],
         "metric_row_count": aggregate["row_count"],
         "board_count": board_summary["board_count"],
         "automatic_winner": None,
@@ -1592,14 +1784,19 @@ def finalize_run(
         "test_data_used": False,
     }
     lines = [
-        "# Phase 2N Week 2 Pilot Rendered-View Evaluation",
+        (
+            "# Phase 2N Full Validation Rendered-View Evaluation"
+            if full_validation
+            else "# Phase 2N Week 2 Pilot Rendered-View Evaluation"
+        ),
         "",
         "status: `OK`",
         f"run_id: `{run_root.name}`",
-        "variants: `6`",
-        "cases: `8` (`6` validation, `2` train-sanity, `0` test)",
-        "rendered PNGs: `288`",
-        "metric rows: `288`",
+        f"variants: `{len(variants)}`",
+        f"cases: `{counts['cases']}` (`{counts['val']}` validation, "
+        f"`{counts['train_sanity']}` train-sanity, `0` test)",
+        f"rendered PNGs: `{counts['planned_renders']}`",
+        f"metric rows: `{aggregate['row_count']}`",
         f"boards: `{board_summary['board_count']}`",
         "",
         "No winner was selected automatically. Use validation only for selection,",
@@ -1608,7 +1805,7 @@ def finalize_run(
     ]
     write_json_atomic(run_root / "summary.json", summary)
     write_text_atomic(run_root / "summary.md", "\n".join(lines) + "\n")
-    write_text_atomic(run_root / "_SUCCESS", "PHASE2N_WEEK2_RENDERED_EVAL_SUCCESS\n")
+    write_text_atomic(run_root / "_SUCCESS", runtime_token(config, "success_file") + "\n")
     validate_complete_run(protocol, run_root, require_success_token=True)
     return summary
 
@@ -1624,7 +1821,7 @@ def execute_runtime(
     if success_token.is_file():
         validate_complete_run(protocol, run_root, require_success_token=True)
         print(f"complete run already validated: {run_root}")
-        print("PHASE2N_WEEK2_RENDERED_EVAL_OK")
+        print(runtime_token(protocol["config"], "complete"))
         return 0
     aggregate = None
     boards = None
@@ -1638,7 +1835,7 @@ def execute_runtime(
         assert aggregate is not None and boards is not None
         finalize_run(protocol, run_root, aggregate, boards)
         print(f"evaluation root: {run_root}")
-        print("PHASE2N_WEEK2_RENDERED_EVAL_OK")
+        print(runtime_token(protocol["config"], "complete"))
     return 0
 
 

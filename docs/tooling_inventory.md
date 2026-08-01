@@ -293,6 +293,15 @@ Status labels:
 | `scripts/make_phase2m_lora_multiscale_pilot_boards.py` | Create one visual board per M3B pilot case. | M3C rendered PNGs and reference images. | `outputs/phase2m/lora_multiscale_pilot_eval/boards/`. | No | No | Stable/reuse | Columns are reference, base, LoRA 0.50, LoRA 0.75, LoRA 1.00; front/input views are labeled. |
 | `env/run_phase2m_lora_multiscale_pilot_eval_a100.sbatch` | Manual A100 launcher for M3C rendered-view pilot evaluation. | M3B outputs and project env. | Rendered PNGs, metrics, boards, Slurm logs. | Yes | Yes | Ready/manual | Runs readiness, Blender render, aggregation, and board generation for three cases only. |
 
+## Phase 2N Controlled Evaluation Tools
+
+| Tool | Purpose | Inputs | Outputs | Requires A100? | Requires Blender? | Status | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `scripts/phase2n_build_full_validation_manifest.py` | Resolve and audit the canonical ten-asset validation matrix, six pilot reuses, and four remaining assets. | Full101 split, pilot case config, Phase 2L/2N manifests. | Check-only stdout or one resolved manifest under `outputs/phase2n/full_validation_manifest/`. | No | No | Stable/reuse | Preferred source of truth for full-validation IDs and the 32 reused / 8 new GLB split; never runs models. |
+| `scripts/phase2n_week2_infer_pilots.py` | Strict scope-checkpoint fixed-mesh inference runner. | Pilot or full-validation inference config, audited scope checkpoints, case metadata. | Project-local GLBs, manifests, summaries, and success markers. | Yes for runtime | No | Stable/reuse | Preserves the four-checkpoint pilot profile and adds the two-candidate/four-asset full-validation profile; check-only is runtime-free. |
+| `scripts/phase2n_week2_evaluate_pilots.py` | Isolated Blender rendering, stable Phase 2K metrics, aggregation, and front/non-front boards. | Pilot or full-validation rendered-eval config and resolved GLBs. | Dedicated rendered-evaluation run under `outputs/phase2n/`. | No | Yes for render stage | Stable/reuse | Preserves the 8 x 6 pilot and supports the 10 x 4 full-validation matrix without changing renderer or metric formulas. |
+| `env/run_phase2n_full_validation_infer_a100.sbatch` | Manual A100 launcher for the eight missing full-validation candidate GLBs. | Full-validation manifest and inference configs. | Fixed `phase2n_full_validation_infer_v1` run plus Slurm logs. | Yes | No | Ready/manual | Runs split/reuse and inference readiness first; refuses an existing fixed run and performs no evaluation. |
+
 ## Phase 2N Reuse Candidates
 
 See `docs/phase2n_day1_architecture_reuse_audit.md` for the exact call chains,

@@ -2,16 +2,18 @@
 
 ## Summary
 
-The project is in Phase 2N Week 2 frozen pilot rendered-view evaluation
-readiness. Week 1 Days 1-5 are complete, controlled Week 2 training run
-`slurm_264123` completed successfully, and four-checkpoint inference run
-`slurm_264581` produced all 32 expected fixed-mesh outputs without test data.
+The project is preparing Phase 2N full validation after successful Week 2
+training, inference, and pilot rendered-view evaluation. Training run
+`slurm_264123`, four-checkpoint inference run `slurm_264581`, and rendered
+evaluation `phase2n_week2_eval_v2` are complete without test data.
 
 Phase 2M refview+DINO LoRA is complete and negative on held-out cases. Phase 2N
 now has a protocol-corrected no-augmentation reader, exact PC-S1 and PC-Full
 scope helpers, optimizer/scheduler guards, successful real-model Day 5
 evidence, an MVA-active deterministic schedule, and completed controlled pilot
-training. No Week 2 checkpoint-quality conclusion exists yet.
+training. Pilot review froze PC-S1 step 160 as the safety-oriented candidate
+and PC-Full step 320 as the quality-oriented candidate for ten-asset validation
+expansion.
 
 ## Initialization Fix
 
@@ -116,6 +118,20 @@ only: no render, metric, model, GLB, or checkpoint result was invalidated. The
 failed run remains read-only, and the repair leaves the scientific
 render/evaluation protocol unchanged.
 
+The repaired run `phase2n_week2_eval_v2` then completed all 288 renders and
+metric rows for six validation and two train-sanity assets. Human and numeric
+review retained `pc_s1_step160` as the conservative safety candidate and
+`pc_full_step320` as the stronger quality candidate. `pc_s1_step320` and
+`pc_full_step160` remain useful pilot-only checkpoint-step ablations and will
+not be expanded.
+
+Full-validation preparation now targets exactly all ten assets in the frozen
+full101 validation split, with zero train-sanity and zero test assets. It
+reuses 20 Phase 2L baseline GLBs and 12 candidate GLBs from the six pilot
+validation assets. Only the two selected candidates on the four remaining
+validation assets require new inference, for exactly eight new GLBs. The final
+clean rendered matrix will contain 40 source GLBs and 240 six-view rows.
+
 ## No Full80-1000 Yet
 
 Do not prepare or run full80-1000 yet. Full80-500 is not a strong enough signal
@@ -124,10 +140,8 @@ is mixed, and visual boards still show leakage/ambiguity.
 
 ## Current Decision
 
-Complete local readiness review and one isolated worker smoke, then run the
-frozen Stage 5 rendered-view workflow manually on `gpu12` under a new run ID.
-Model selection must use validation only, with train-sanity treated as
-diagnostic and non-front/leakage safety checked before front gains. Training
-loss alone must not select a checkpoint. No Week 2 quality claim should be made
-before the 288-render metric set and human boards exist, and the test split
-must remain untouched.
+Audit the full-validation 10/6/4 split and reuse matrix, then manually run only
+the eight required A100 candidate inferences. After those outputs validate,
+render all ten validation assets and four variants into one new local
+full-validation run. Selection remains validation-only, with non-front/leakage
+safety checked before front gains. The test split remains untouched.
