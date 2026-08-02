@@ -2,20 +2,17 @@
 
 ## Summary
 
-The project is preparing the frozen Phase 2N final test after successful Week 2
-training, pilot evaluation, and complete ten-asset validation. Training run
-`slurm_264123`, pilot inference run `slurm_264581`, rendered pilot
-`phase2n_week2_eval_v2`, and full validation
-`phase2n_full_validation_eval_v1` are complete without using test data for
-Phase 2N candidate or checkpoint selection.
+Phase 2N is **CLOSED**. Controlled training, validation-only selection, frozen
+final-test inference, and the 11-asset rendered final test are complete.
+`corrected_input_base` is the default safety recommendation, while
+`pc_full_step320` is an optional front-quality checkpoint. PC-Full improves
+mean front/input fidelity but does not improve non-front mean MAE, and
+hidden-surface/front-to-back leakage remains unresolved.
 
-Phase 2M refview+DINO LoRA is complete and negative on held-out cases. Phase 2N
-now has a protocol-corrected no-augmentation reader, exact PC-S1 and PC-Full
-scope helpers, optimizer/scheduler guards, successful real-model Day 5
-evidence, an MVA-active deterministic schedule, and completed controlled pilot
-training. Pilot review froze PC-S1 step 160 as the safety-oriented candidate
-and PC-Full step 320 as the quality-oriented candidate for ten-asset validation
-expansion.
+No further Phase 2N training, checkpoint replacement, model selection, or
+test-driven tuning is permitted. The next activity is report writing and
+broader project consolidation. Phase 2M refview+DINO LoRA remains a completed
+negative result on held-out cases.
 
 ## Initialization Fix
 
@@ -134,6 +131,15 @@ was `-0.44887108272976345`, SSIM-like delta was
 assets had non-front leakage regressions. `pc_s1_step160` remains a validation
 ablation and is excluded from final test.
 
+The frozen final test is complete under
+`outputs/phase2n/final_test_rendered_eval/phase2n_final_test_eval_v1`. It
+contains exactly 11 test assets, three variants, 198 rendered rows, zero
+validation rows, and zero train-sanity rows. PC-Full has a modest all-view MAE
+gain and stronger mean front/input fidelity, but improves only 5 of 11 assets
+on all-view mean MAE. Non-front mean MAE regresses and seven assets meet the
+leakage-regression criterion. These report-only results do not authorize
+further tuning.
+
 ## No Full80-1000 Yet
 
 Do not prepare or run full80-1000 yet. Full80-500 is not a strong enough signal
@@ -142,10 +148,9 @@ is mixed, and visual boards still show leakage/ambiguity.
 
 ## Current Decision
 
-Freeze and audit the exact 11-asset full101 test split, then manually run only
-the 11 required `pc_full_step320` A100 inferences. Reuse the 22 compatible
-Phase 2L test baseline GLBs and render one clean 11 x 3 x 6 final matrix after
-inference succeeds. The test split is held out from Phase 2N candidate and
-checkpoint selection; its report cannot drive tuning or checkpoint
-replacement. It was previously evaluated for the historical Phase 2L full80
-baseline and is not described as never inspected project-wide.
+Keep `corrected_input_base` as the default safety recommendation and treat
+`pc_full_step320` as an optional front-quality checkpoint. Keep
+`historical_full80_500` for comparison only and `pc_s1_step160` as a
+validation ablation only. Phase 2N is closed; proceed to report writing and
+broader project consolidation without additional Phase 2N training or
+test-driven tuning.
