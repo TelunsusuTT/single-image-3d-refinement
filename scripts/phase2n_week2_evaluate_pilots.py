@@ -30,6 +30,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "phase2n_week2_pilot_rendered_eval.json"
 EXPECTED_PHASE = "phase2n_week2_pilot_rendered_eval"
 FULL_VALIDATION_PHASE = "phase2n_full_validation_rendered_eval"
+FINAL_TEST_PHASE = "phase2n_final_test_rendered_eval"
 EXPECTED_VARIANTS = [
     "corrected_input_base",
     "historical_full80_500",
@@ -42,6 +43,11 @@ FULL_VALIDATION_VARIANTS = [
     "corrected_input_base",
     "historical_full80_500",
     "pc_s1_step160",
+    "pc_full_step320",
+]
+FINAL_TEST_VARIANTS = [
+    "corrected_input_base",
+    "historical_full80_500",
     "pc_full_step320",
 ]
 EXPECTED_CASE_IDS = [
@@ -63,6 +69,7 @@ EXPECTED_VIEW_GROUPS = {
 }
 EXPECTED_SPLIT_COUNTS = {"val": 6, "train_sanity": 2, "test": 0}
 FULL_VALIDATION_SPLIT_COUNTS = {"val": 10, "train_sanity": 0, "test": 0}
+FINAL_TEST_SPLIT_COUNTS = {"val": 0, "train_sanity": 0, "test": 11}
 BASE_VARIANT = "corrected_input_base"
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -76,16 +83,30 @@ def is_full_validation_config(config: Mapping[str, Any]) -> bool:
     return config.get("phase") == FULL_VALIDATION_PHASE
 
 
+def is_final_test_config(config: Mapping[str, Any]) -> bool:
+    return config.get("phase") == FINAL_TEST_PHASE
+
+
 def expected_variants(config: Mapping[str, Any]) -> list[str]:
+    if is_final_test_config(config):
+        return FINAL_TEST_VARIANTS
     return FULL_VALIDATION_VARIANTS if is_full_validation_config(config) else EXPECTED_VARIANTS
 
 
 def expected_split_counts(config: Mapping[str, Any]) -> dict[str, int]:
-    return (
-        FULL_VALIDATION_SPLIT_COUNTS
-        if is_full_validation_config(config)
-        else EXPECTED_SPLIT_COUNTS
-    )
+    if is_final_test_config(config):
+        return FINAL_TEST_SPLIT_COUNTS
+    if is_full_validation_config(config):
+        return FULL_VALIDATION_SPLIT_COUNTS
+    return EXPECTED_SPLIT_COUNTS
+
+
+def evaluation_split(config: Mapping[str, Any]) -> str:
+    return "test" if is_final_test_config(config) else "val"
+
+
+def test_data_used(config: Mapping[str, Any]) -> bool:
+    return is_final_test_config(config)
 
 
 def protocol_variants(protocol: Mapping[str, Any]) -> list[str]:
@@ -97,6 +118,15 @@ def protocol_phase(protocol: Mapping[str, Any]) -> str:
 
 
 def runtime_token(config: Mapping[str, Any], stage: str) -> str:
+    if is_final_test_config(config):
+        return {
+            "render": "PHASE2N_FINAL_TEST_RENDER_STAGE_OK",
+            "metrics": "PHASE2N_FINAL_TEST_METRICS_STAGE_OK",
+            "boards": "PHASE2N_FINAL_TEST_BOARDS_STAGE_OK",
+            "complete": "PHASE2N_FINAL_TEST_RENDERED_EVAL_OK",
+            "success_file": "PHASE2N_FINAL_TEST_RENDERED_EVAL_SUCCESS",
+            "worker": "PHASE2N_FINAL_TEST_RENDER_ONE_OK",
+        }[stage]
     if is_full_validation_config(config):
         return {
             "render": "PHASE2N_FULL_VALIDATION_RENDER_STAGE_OK",
@@ -165,6 +195,16 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def git_head(project_root: Path) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(project_root), "rev-parse", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
 def validate_nonempty_file(path: Path, label: str) -> None:
     if not path.is_file():
         raise EvaluationError(f"missing {label}: {path}")
@@ -220,7 +260,7 @@ def validate_png(path: Path, expected_resolution: int | None = None) -> tuple[in
 
 def validate_exact_protocol_config(config: dict[str, Any]) -> None:
     phase = config.get("phase")
-    if phase not in {EXPECTED_PHASE, FULL_VALIDATION_PHASE}:
+    if phase not in {EXPECTED_PHASE, FULL_VALIDATION_PHASE, FINAL_TEST_PHASE}:
         raise EvaluationError(
             f"unsupported rendered-evaluation phase: {phase!r}"
         )
@@ -245,6 +285,9 @@ def validate_exact_protocol_config(config: dict[str, Any]) -> None:
     if is_full_validation_config(config):
         if any(source != {"kind": "full_validation_manifest"} for source in sources.values()):
             raise EvaluationError("full validation sources must use the audited manifest")
+    if is_final_test_config(config):
+        if any(source != {"kind": "final_test_manifest"} for source in sources.values()):
+            raise EvaluationError("final-test sources must use the audited manifest")
 
 
 def validate_frozen_cases(
@@ -503,6 +546,91 @@ def resolve_full_validation_manifest(
     return manifest, cases, variants
 
 
+def load_final_test_builder(project_root: Path) -> Any:
+    source = project_root / "scripts" / "phase2n_build_final_test_manifest.py"
+    spec = importlib.util.spec_from_file_location("_phase2n_final_test_manifest_eval", source)
+    if spec is None or spec.loader is None:
+        raise EvaluationError(f"could not load final-test manifest builder: {source}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def resolve_final_test_manifest(
+    config: dict[str, Any],
+    manifest_config_path: Path,
+    project_root: Path,
+    validate_files: bool,
+) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
+    builder = load_final_test_builder(project_root)
+    try:
+        manifest = builder.build_manifest(
+            manifest_config_path,
+            project_root,
+            require_new_outputs=validate_files,
+            validate_files=validate_files,
+        )
+    except Exception as exc:
+        raise EvaluationError(f"final-test manifest resolution failed: {exc}") from exc
+    if manifest.get("test_ids") != config.get("leakage_risk_assets"):
+        raise EvaluationError("final-test case order differs from the canonical test split")
+    if manifest.get("split_counts") != FINAL_TEST_SPLIT_COUNTS:
+        raise EvaluationError("final-test manifest is not test-only 0/0/11")
+    if manifest.get("candidate_variants") != ["pc_full_step320"]:
+        raise EvaluationError("final-test manifest includes an unfrozen candidate")
+    cases = [
+        {
+            "asset_id": row["asset_id"],
+            "eval_split": "test",
+            "source_split": "test",
+            "selection_stratum": "phase2n_final_test",
+            "selection_rationale": (
+                "Canonical full101 test split; held out from Phase 2N candidate "
+                "and checkpoint selection."
+            ),
+            "selected_input_view": "005",
+            "reference_lighting": "AL",
+            "reference_images": dict(row["reference_paths"]),
+        }
+        for row in manifest["cases"]
+    ]
+    source_index = {
+        (row["variant_id"], row["asset_id"]): row
+        for row in manifest["source_records"]
+    }
+    variants: list[dict[str, Any]] = []
+    for variant in FINAL_TEST_VARIANTS:
+        per_case = {}
+        for case in cases:
+            row = source_index.get((variant, case["asset_id"]))
+            if row is None:
+                raise EvaluationError(
+                    f"missing final-test source record: {variant}/{case['asset_id']}"
+                )
+            glb = Path(row["source_path"])
+            if validate_files:
+                validate_nonempty_file(glb, f"source GLB {variant}/{case['asset_id']}")
+                if glb.suffix.lower() != ".glb":
+                    raise EvaluationError(f"source is not a GLB: {glb}")
+            per_case[case["asset_id"]] = {
+                "glb_path": str(glb),
+                "source_manifest": row["source_manifest"],
+                "source_kind": "final_test_manifest",
+                "reuse_status": row["reuse_status"],
+                **({"byte_size": glb.stat().st_size} if validate_files else {}),
+            }
+        variants.append(
+            {
+                "variant": variant,
+                "source_kind": "final_test_manifest",
+                "cases": per_case,
+            }
+        )
+    if len(source_index) != 33:
+        raise EvaluationError("final-test manifest must resolve exactly 33 source GLBs")
+    return manifest, cases, variants
+
+
 def validate_helpers(config: dict[str, Any], project_root: Path) -> tuple[Path, Path]:
     renderer = resolve_project_path(config["stable_renderer_script"], project_root)
     metrics = resolve_project_path(config["stable_metrics_script"], project_root)
@@ -570,7 +698,14 @@ def resolve_protocol(
     frozen_path = resolve_project_path(config["frozen_cases_config"], project_root)
     output_root = resolve_project_path(config["output_root"], project_root)
     resolved_manifest = None
-    if is_full_validation_config(config):
+    if is_final_test_config(config):
+        resolved_manifest, cases, variants = resolve_final_test_manifest(
+            config,
+            frozen_path,
+            project_root,
+            validate_files,
+        )
+    elif is_full_validation_config(config):
         resolved_manifest, cases, variants = resolve_full_validation_manifest(
             config,
             frozen_path,
@@ -632,7 +767,12 @@ def resolve_protocol(
         "variants": variants,
         "plan": plan,
         "counts": actual,
-        "resolved_full_validation_manifest": resolved_manifest,
+        "resolved_full_validation_manifest": (
+            resolved_manifest if is_full_validation_config(config) else None
+        ),
+        "resolved_final_test_manifest": (
+            resolved_manifest if is_final_test_config(config) else None
+        ),
     }
 
 
@@ -640,7 +780,9 @@ def run_check_only(config_path: Path, project_root: Path = PROJECT_ROOT) -> dict
     protocol = resolve_protocol(config_path, project_root=project_root, validate_files=True)
     config = protocol["config"]
     title = (
-        "Phase 2N full-validation rendered-view evaluation readiness"
+        "Phase 2N final-test rendered-view evaluation readiness"
+        if is_final_test_config(config)
+        else "Phase 2N full-validation rendered-view evaluation readiness"
         if is_full_validation_config(config)
         else "Phase 2N Week 2 rendered-view evaluation readiness"
     )
@@ -650,7 +792,9 @@ def run_check_only(config_path: Path, project_root: Path = PROJECT_ROOT) -> dict
     print(f"  source_glbs: {protocol['counts']['source_glbs']}")
     print(f"  references: {protocol['counts']['references']}")
     print(f"  planned_renders: {protocol['counts']['planned_renders']}")
-    if is_full_validation_config(config):
+    if is_final_test_config(config):
+        print("PHASE2N_FINAL_TEST_RENDERED_EVAL_READINESS_OK")
+    elif is_full_validation_config(config):
         print("PHASE2N_FULL_VALIDATION_RENDERED_EVAL_READINESS_OK")
     else:
         print("PHASE2N_WEEK2_RENDER_INPUTS_OK")
@@ -750,7 +894,7 @@ def runtime_manifest(protocol: dict[str, Any], run_id: str) -> dict[str, Any]:
                     "byte_size": glb.stat().st_size,
                 }
             )
-    return {
+    manifest = {
         "phase": protocol_phase(protocol),
         "run_id": run_id,
         "config_path": protocol["config_path"],
@@ -769,20 +913,53 @@ def runtime_manifest(protocol: dict[str, Any], run_id: str) -> dict[str, Any]:
         "isolated_blender_process_per_glb": True,
         "counts": protocol["counts"],
         "source_inventory": source_inventory,
-        "test_data_used": False,
+        "test_data_used": test_data_used(protocol["config"]),
     }
+    final_manifest = protocol.get("resolved_final_test_manifest")
+    if isinstance(final_manifest, dict):
+        manifest["test_data_used_for_selection"] = False
+        source_manifests = sorted(
+            {
+                item["source_manifest"]
+                for variant in protocol["variants"]
+                for item in variant["cases"].values()
+            }
+        )
+        manifest["final_test_provenance"] = {
+            "freeze_record_path": final_manifest["freeze_record_path"],
+            "freeze_record_sha256": final_manifest["freeze_record_sha256"],
+            "project_git_head": git_head(PROJECT_ROOT),
+            "source_manifests": [
+                {
+                    "path": path,
+                    "sha256": sha256_file(Path(path)),
+                    "document": load_json(Path(path)),
+                }
+                for path in source_manifests
+            ],
+            "checkpoint_manifest_path": final_manifest[
+                "candidate_checkpoint_manifest_path"
+            ],
+            "checkpoint_manifest_sha256": sha256_file(
+                Path(final_manifest["candidate_checkpoint_manifest_path"])
+            ),
+        }
+    return manifest
 
 
 def resolved_cases_document(protocol: dict[str, Any]) -> dict[str, Any]:
-    return {
+    document = {
         "phase": protocol_phase(protocol),
         "case_count": len(protocol["cases"]),
         "split_counts": expected_split_counts(protocol["config"]),
         "selected_input_view": "005",
         "reference_lighting": "AL",
-        "test_data_used": False,
+        "test_data_used": test_data_used(protocol["config"]),
         "cases": protocol["cases"],
     }
+    if is_final_test_config(protocol["config"]):
+        document["test_data_used_for_selection"] = False
+    return document
 
 
 def resolved_variants_document(protocol: dict[str, Any]) -> dict[str, Any]:
@@ -804,6 +981,10 @@ def prepare_run(protocol: dict[str, Any], run_id: str, create: bool) -> Path:
     run_root = (output_root / run_id).resolve()
     if not is_within(run_root, output_root):
         raise EvaluationError(f"unsafe run directory: {run_root}")
+    if run_root.exists() and create and is_final_test_config(protocol["config"]):
+        raise EvaluationError(
+            f"final-test run already exists; use a new run ID: {run_root}"
+        )
     manifest_path = run_root / "00_RUNTIME_MANIFEST.json"
     expected_manifest = runtime_manifest(protocol, run_id)
     if run_root.exists():
@@ -823,6 +1004,14 @@ def prepare_run(protocol: dict[str, Any], run_id: str, create: bool) -> Path:
         write_json_atomic(
             run_root / "resolved_variants.json", resolved_variants_document(protocol)
         )
+        final_manifest = protocol.get("resolved_final_test_manifest")
+        if isinstance(final_manifest, dict):
+            write_json_atomic(run_root / "final_test_freeze.json", final_manifest["freeze"])
+            write_json_atomic(run_root / "final_test_source_manifest.json", final_manifest)
+            write_json_atomic(
+                run_root / "checkpoint_manifest.json",
+                load_json(Path(final_manifest["candidate_checkpoint_manifest_path"])),
+            )
     else:
         raise EvaluationError(f"run does not exist for requested stage: {run_root}")
     return run_root
@@ -872,7 +1061,19 @@ def blender_render_one(args: argparse.Namespace) -> int:
     variant = str(args.worker_variant_id)
     eval_split = str(args.worker_eval_split)
     source_split = str(args.worker_source_split)
-    if is_full_validation_config(worker_config):
+    if is_final_test_config(worker_config):
+        manifest_config = resolve_project_path(
+            worker_config["frozen_cases_config"], config_path.parents[1]
+        )
+        builder = load_final_test_builder(config_path.parents[1])
+        resolved = builder.build_manifest(
+            manifest_config,
+            config_path.parents[1],
+            require_new_outputs=True,
+            validate_files=True,
+        )
+        allowed_case_ids = resolved["test_ids"]
+    elif is_full_validation_config(worker_config):
         manifest_config = resolve_project_path(
             worker_config["frozen_cases_config"], config_path.parents[1]
         )
@@ -890,10 +1091,22 @@ def blender_render_one(args: argparse.Namespace) -> int:
         raise EvaluationError(f"unexpected internal worker case ID: {case_id}")
     if variant not in expected_variants(worker_config):
         raise EvaluationError(f"unexpected internal worker variant ID: {variant}")
-    allowed_splits = {"val"} if is_full_validation_config(worker_config) else {"val", "train_sanity"}
+    allowed_splits = (
+        {"test"}
+        if is_final_test_config(worker_config)
+        else {"val"}
+        if is_full_validation_config(worker_config)
+        else {"val", "train_sanity"}
+    )
     if eval_split not in allowed_splits:
         raise EvaluationError(f"unexpected internal worker eval split: {eval_split}")
-    expected_source_split = "val" if eval_split == "val" else "train"
+    expected_source_split = (
+        "test"
+        if eval_split == "test"
+        else "val"
+        if eval_split == "val"
+        else "train"
+    )
     if source_split != expected_source_split:
         raise EvaluationError(
             f"internal worker source split {source_split!r} does not match "
@@ -1307,6 +1520,7 @@ def build_aggregate_artifacts(
     split_names = [
         split for split, count in expected_split_counts(config).items() if count > 0
     ]
+    primary_split = evaluation_split(config)
     leakage_assets = set(config["leakage_risk_assets"])
     by_variant = {
         variant: summarize_rows(rows_for(rows, variant=variant))
@@ -1376,7 +1590,12 @@ def build_aggregate_artifacts(
         "asset_ids": list(config["leakage_risk_assets"]),
         "all_views": {
             variant: summarize_rows(
-                rows_for(rows, variant=variant, split="val", asset_ids=leakage_assets)
+                rows_for(
+                    rows,
+                    variant=variant,
+                    split=primary_split,
+                    asset_ids=leakage_assets,
+                )
             )
             for variant in variants
         },
@@ -1385,7 +1604,7 @@ def build_aggregate_artifacts(
                 rows_for(
                     rows,
                     variant=variant,
-                    split="val",
+                    split=primary_split,
                     view_group="nonfront_000_003",
                     asset_ids=leakage_assets,
                 )
@@ -1398,7 +1617,7 @@ def build_aggregate_artifacts(
                     rows_for(
                         rows,
                         variant=variant,
-                        split="val",
+                        split=primary_split,
                         view_group="nonfront_000_003",
                         asset_id=asset_id,
                     )
@@ -1410,20 +1629,30 @@ def build_aggregate_artifacts(
     }
     evidence: dict[str, Any] = {}
     for variant in variants[1:]:
-        val_all = summarize_rows(rows_for(rows, variant=variant, split="val"))
-        val_front = summarize_rows(
-            rows_for(
-                rows, variant=variant, split="val", view_group="front_004_005"
-            )
+        primary_all = summarize_rows(
+            rows_for(rows, variant=variant, split=primary_split)
         )
-        val_input = summarize_rows(
-            rows_for(rows, variant=variant, split="val", view_group="input_005")
-        )
-        val_nonfront = summarize_rows(
+        primary_front = summarize_rows(
             rows_for(
                 rows,
                 variant=variant,
-                split="val",
+                split=primary_split,
+                view_group="front_004_005",
+            )
+        )
+        primary_input = summarize_rows(
+            rows_for(
+                rows,
+                variant=variant,
+                split=primary_split,
+                view_group="input_005",
+            )
+        )
+        primary_nonfront = summarize_rows(
+            rows_for(
+                rows,
+                variant=variant,
+                split=primary_split,
                 view_group="nonfront_000_003",
             )
         )
@@ -1436,27 +1665,49 @@ def build_aggregate_artifacts(
             delta = asset_summary["mean_delta_mae"]
             if isinstance(delta, (int, float)) and delta > 0:
                 leakage_regressions.append(asset_id)
-        evidence[variant] = {
-            "validation_all_views": val_all,
-            "validation_front_004_005": val_front,
-            "validation_input_005": val_input,
-            "validation_nonfront_000_003": val_nonfront,
+        row = {
             "train_sanity_all_views": train_sanity,
-            "mean_delta_mae": val_all["mean_delta_mae"],
-            "mean_delta_ssim_like": val_all["mean_delta_ssim_like"],
-            "improved_view_count": val_all["improved_view_count"],
-            "worsened_view_count": val_all["worsened_view_count"],
-            "direct_visual_change_magnitude_from_base": val_all[
+            "mean_delta_mae": primary_all["mean_delta_mae"],
+            "mean_delta_ssim_like": primary_all["mean_delta_ssim_like"],
+            "improved_view_count": primary_all["improved_view_count"],
+            "worsened_view_count": primary_all["worsened_view_count"],
+            "direct_visual_change_magnitude_from_base": primary_all[
                 "mean_direct_visual_change_mae"
             ],
-            "val_front_mean_better_than_base": mean_better(val_front),
-            "val_front_view_win_count": val_front["improved_view_count"],
-            "val_input_mean_better_than_base": mean_better(val_input),
-            "val_nonfront_mean_better_than_base": mean_better(val_nonfront),
+            f"{primary_split}_front_mean_better_than_base": mean_better(primary_front),
+            f"{primary_split}_front_view_win_count": primary_front[
+                "improved_view_count"
+            ],
+            f"{primary_split}_input_mean_better_than_base": mean_better(primary_input),
+            f"{primary_split}_nonfront_mean_better_than_base": mean_better(
+                primary_nonfront
+            ),
             "leakage_risk_regression_count": len(leakage_regressions),
             "leakage_risk_regression_assets": leakage_regressions,
             "train_sanity_mean_better_than_base": mean_better(train_sanity),
         }
+        if primary_split == "val":
+            row.update(
+                {
+                    "validation_all_views": primary_all,
+                    "validation_front_004_005": primary_front,
+                    "validation_input_005": primary_input,
+                    "validation_nonfront_000_003": primary_nonfront,
+                }
+            )
+        else:
+            row.update(
+                {
+                    "test_all_views": primary_all,
+                    "test_front_004_005": primary_front,
+                    "test_input_005": primary_input,
+                    "test_nonfront_000_003": primary_nonfront,
+                }
+            )
+        evidence[variant] = row
+    leakage_key = (
+        "leakage_risk_test" if is_final_test_config(config) else "leakage_risk_validation"
+    )
     aggregate = {
         "phase": protocol_phase(protocol),
         "status": "OK" if len(rows) == protocol["counts"]["planned_renders"] else "FAIL",
@@ -1469,12 +1720,21 @@ def build_aggregate_artifacts(
         "by_view_group": by_view_group,
         "by_asset": by_asset,
         "by_view": by_view,
-        "leakage_risk_validation": leakage_subset,
+        leakage_key: leakage_subset,
         "candidate_evidence_relative_to_corrected_input_base": evidence,
         "automatic_winner": None,
         "selection_requires_validation_and_human_board_review": True,
-        "test_data_used": False,
+        "test_data_used": test_data_used(config),
     }
+    if is_final_test_config(config):
+        aggregate.update(
+            {
+                "selection_requires_validation_and_human_board_review": False,
+                "frozen_candidate_evaluation_only": True,
+                "checkpoint_replacement_allowed": False,
+                "test_data_used_for_selection": False,
+            }
+        )
     per_asset = {
         "phase": protocol_phase(protocol),
         "asset_count": len(by_asset),
@@ -1506,9 +1766,13 @@ def write_metric_rows(metrics_dir: Path, rows: list[dict[str, Any]]) -> None:
 
 def aggregate_markdown(aggregate: dict[str, Any]) -> str:
     full_validation = aggregate["phase"] == FULL_VALIDATION_PHASE
+    final_test = aggregate["phase"] == FINAL_TEST_PHASE
+    split_prefix = "test" if final_test else "val"
     lines = [
         (
-            "# Phase 2N Full Validation Rendered-View Aggregate"
+            "# Phase 2N Final-Test Rendered-View Aggregate"
+            if final_test
+            else "# Phase 2N Full Validation Rendered-View Aggregate"
             if full_validation
             else "# Phase 2N Week 2 Pilot Rendered-View Aggregate"
         ),
@@ -1518,12 +1782,21 @@ def aggregate_markdown(aggregate: dict[str, Any]) -> str:
         f"cases: `{aggregate['case_count']}`",
         f"test data used: `{str(aggregate['test_data_used']).lower()}`",
         "",
-        "No winner is selected automatically. Validation evidence and visual boards",
-        "must be reviewed with non-front leakage safety checked before front gains.",
+        (
+            "This report evaluates the already frozen candidate and cannot select or "
+            "replace a checkpoint."
+            if final_test
+            else "No winner is selected automatically. Validation evidence and visual boards"
+        ),
+        (
+            "Test results are report-only and must not trigger Phase 2N tuning."
+            if final_test
+            else "must be reviewed with non-front leakage safety checked before front gains."
+        ),
         "",
-        "## Validation Evidence",
+        "## Test Evidence" if final_test else "## Validation Evidence",
         "",
-        "| Variant | Val MAE delta | Val SSIM delta | Front better | Front wins | Input better | Non-front better | Leakage regressions | Train-sanity better | Direct change MAE |",
+        "| Variant | Split MAE delta | Split SSIM delta | Front better | Front wins | Input better | Non-front better | Leakage regressions | Train-sanity better | Direct change MAE |",
         "|---|---:|---:|---|---:|---|---|---:|---|---:|",
     ]
     evidence = aggregate["candidate_evidence_relative_to_corrected_input_base"]
@@ -1532,10 +1805,10 @@ def aggregate_markdown(aggregate: dict[str, Any]) -> str:
         lines.append(
             f"| `{variant}` | `{row['mean_delta_mae']}` | "
             f"`{row['mean_delta_ssim_like']}` | "
-            f"`{row['val_front_mean_better_than_base']}` | "
-            f"`{row['val_front_view_win_count']}` | "
-            f"`{row['val_input_mean_better_than_base']}` | "
-            f"`{row['val_nonfront_mean_better_than_base']}` | "
+            f"`{row[f'{split_prefix}_front_mean_better_than_base']}` | "
+            f"`{row[f'{split_prefix}_front_view_win_count']}` | "
+            f"`{row[f'{split_prefix}_input_mean_better_than_base']}` | "
+            f"`{row[f'{split_prefix}_nonfront_mean_better_than_base']}` | "
             f"`{row['leakage_risk_regression_count']}` | "
             f"`{row['train_sanity_mean_better_than_base']}` | "
             f"`{row['direct_visual_change_magnitude_from_base']}` |"
@@ -1544,6 +1817,11 @@ def aggregate_markdown(aggregate: dict[str, Any]) -> str:
 
 
 def run_metrics_stage(protocol: dict[str, Any], run_root: Path) -> dict[str, Any]:
+    metrics_dir = run_root / "metrics"
+    if is_final_test_config(protocol["config"]) and metrics_dir.exists():
+        raise EvaluationError(
+            f"final-test metrics already exist; use a new run ID: {metrics_dir}"
+        )
     validate_render_inventory(protocol, run_root, require_all=True)
     rows = compute_metric_rows(protocol, run_root)
     if len(rows) != protocol["counts"]["planned_renders"]:
@@ -1553,7 +1831,6 @@ def run_metrics_stage(protocol: dict[str, Any], run_root: Path) -> dict[str, Any
     aggregate, per_asset = build_aggregate_artifacts(rows, protocol)
     if aggregate["status"] != "OK":
         raise EvaluationError("aggregate metrics are incomplete")
-    metrics_dir = run_root / "metrics"
     write_metric_rows(metrics_dir, rows)
     write_json_atomic(metrics_dir / "per_asset.json", per_asset)
     write_json_atomic(metrics_dir / "aggregate.json", aggregate)
@@ -1650,6 +1927,11 @@ def make_one_board(
 
 
 def run_boards_stage(protocol: dict[str, Any], run_root: Path) -> dict[str, Any]:
+    boards_dir = run_root / "boards"
+    if is_final_test_config(protocol["config"]) and boards_dir.exists():
+        raise EvaluationError(
+            f"final-test boards already exist; use a new run ID: {boards_dir}"
+        )
     validate_render_inventory(protocol, run_root, require_all=True)
     rows = []
     for case in protocol["cases"]:
@@ -1719,6 +2001,14 @@ def required_final_paths(run_root: Path, protocol: dict[str, Any]) -> list[Path]
         run_root / "summary.json",
         run_root / "summary.md",
     ]
+    if is_final_test_config(protocol["config"]):
+        paths.extend(
+            [
+                run_root / "final_test_freeze.json",
+                run_root / "final_test_source_manifest.json",
+                run_root / "checkpoint_manifest.json",
+            ]
+        )
     for case in protocol["cases"]:
         paths.extend(
             [
@@ -1751,8 +2041,14 @@ def validate_complete_run(
         raise EvaluationError(
             f"aggregate metrics are not a complete {expected_rows}-row result"
         )
-    if aggregate.get("test_data_used") is not False:
-        raise EvaluationError("aggregate metrics indicate test data use")
+    expected_test_use = test_data_used(protocol["config"])
+    if aggregate.get("test_data_used") is not expected_test_use:
+        raise EvaluationError("aggregate test-data-use flag does not match the phase")
+    if (
+        is_final_test_config(protocol["config"])
+        and aggregate.get("test_data_used_for_selection") is not False
+    ):
+        raise EvaluationError("aggregate permits test data to influence selection")
     if require_success_token:
         validate_nonempty_file(run_root / "_SUCCESS", "evaluation success token")
 
@@ -1767,6 +2063,18 @@ def finalize_run(
     variants = protocol_variants(protocol)
     counts = protocol["counts"]
     full_validation = is_full_validation_config(config)
+    final_test = is_final_test_config(config)
+    if final_test:
+        existing = [
+            path
+            for path in (run_root / "summary.json", run_root / "summary.md", run_root / "_SUCCESS")
+            if path.exists()
+        ]
+        if existing:
+            raise EvaluationError(
+                "final-test summary artifacts already exist; use a new run ID: "
+                + ", ".join(str(path) for path in existing)
+            )
     summary = {
         "phase": protocol_phase(protocol),
         "status": "OK",
@@ -1781,11 +2089,22 @@ def finalize_run(
         "board_count": board_summary["board_count"],
         "automatic_winner": None,
         "selection_requires_validation_and_human_board_review": True,
-        "test_data_used": False,
+        "test_data_used": test_data_used(config),
     }
+    if final_test:
+        summary.update(
+            {
+                "selection_requires_validation_and_human_board_review": False,
+                "frozen_candidate_evaluation_only": True,
+                "checkpoint_replacement_allowed": False,
+                "test_data_used_for_selection": False,
+            }
+        )
     lines = [
         (
-            "# Phase 2N Full Validation Rendered-View Evaluation"
+            "# Phase 2N Final-Test Rendered-View Evaluation"
+            if final_test
+            else "# Phase 2N Full Validation Rendered-View Evaluation"
             if full_validation
             else "# Phase 2N Week 2 Pilot Rendered-View Evaluation"
         ),
@@ -1794,14 +2113,23 @@ def finalize_run(
         f"run_id: `{run_root.name}`",
         f"variants: `{len(variants)}`",
         f"cases: `{counts['cases']}` (`{counts['val']}` validation, "
-        f"`{counts['train_sanity']}` train-sanity, `0` test)",
+        f"`{counts['train_sanity']}` train-sanity, `{counts['test']}` test)",
         f"rendered PNGs: `{counts['planned_renders']}`",
         f"metric rows: `{aggregate['row_count']}`",
         f"boards: `{board_summary['board_count']}`",
         "",
-        "No winner was selected automatically. Use validation only for selection,",
-        "treat train-sanity as diagnostic, and review non-front leakage boards before",
-        "considering front-view gains.",
+        (
+            "The candidate was frozen before this test; this report cannot select or "
+            "replace a checkpoint."
+            if final_test
+            else "No winner was selected automatically. Use validation only for selection,"
+        ),
+        (
+            "Test results are report-only and must not trigger further Phase 2N tuning."
+            if final_test
+            else "treat train-sanity as diagnostic, and review non-front leakage boards before"
+        ),
+        "" if final_test else "considering front-view gains.",
     ]
     write_json_atomic(run_root / "summary.json", summary)
     write_text_atomic(run_root / "summary.md", "\n".join(lines) + "\n")

@@ -1,0 +1,91 @@
+{
+  "phase": "phase2n_final_test_rendered_eval",
+  "inference_run_dir": "outputs/phase2n/final_test_inference/phase2n_final_test_infer_v1",
+  "frozen_cases_config": "configs/phase2n_final_test_manifest.json",
+  "output_root": "outputs/phase2n/final_test_rendered_eval",
+  "render_resolution": 512,
+  "blender_bin": "/vol/bitbucket/ct1022/tools/bin/blender",
+  "stable_renderer_script": "scripts/render_phase2k3_glb_views_blender.py",
+  "stable_metrics_script": "scripts/compare_phase2k3_rendered_views.py",
+  "variant_order": [
+    "corrected_input_base",
+    "historical_full80_500",
+    "pc_full_step320"
+  ],
+  "variant_sources": {
+    "corrected_input_base": {
+      "kind": "final_test_manifest"
+    },
+    "historical_full80_500": {
+      "kind": "final_test_manifest"
+    },
+    "pc_full_step320": {
+      "kind": "final_test_manifest"
+    }
+  },
+  "view_ids": [
+    "000",
+    "001",
+    "002",
+    "003",
+    "004",
+    "005"
+  ],
+  "view_groups": {
+    "all_views": [
+      "000",
+      "001",
+      "002",
+      "003",
+      "004",
+      "005"
+    ],
+    "input_005": [
+      "005"
+    ],
+    "front_004_005": [
+      "004",
+      "005"
+    ],
+    "nonfront_000_003": [
+      "000",
+      "001",
+      "002",
+      "003"
+    ]
+  },
+  "selected_input_view": "005",
+  "reference_lighting": "AL",
+  "background_color": [
+    0.28,
+    0.28,
+    0.28
+  ],
+  "isolated_blender_process_per_glb": true,
+  "expected_counts": {
+    "cases": 11,
+    "val": 0,
+    "train_sanity": 0,
+    "test": 11,
+    "variants": 3,
+    "source_glbs": 33,
+    "references": 66,
+    "planned_renders": 198
+  },
+  "leakage_risk_assets": [
+    "B073NZS586",
+    "B073P1JNZZ",
+    "B075HXJ6Q9",
+    "B073P1N4C4",
+    "B073NZGLT1",
+    "B073P1CKJH",
+    "B073P5FLX9",
+    "B073P1H7MS",
+    "B07HSK626Y",
+    "B073P1H6D8",
+    "B075YNL763"
+  ],
+  "high_front_complexity_assets": [],
+  "historical_median_assets": [],
+  "train_sanity_assets": []
+}

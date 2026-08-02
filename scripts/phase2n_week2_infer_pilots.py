@@ -42,11 +42,14 @@ from hy3dft.scope_checkpoint import (  # noqa: E402
 DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "phase2n_week2_pilot_inference.json"
 PILOT_PHASE = "phase2n_week2_pilot_inference"
 FULL_VALIDATION_PHASE = "phase2n_full_validation_inference"
+FINAL_TEST_PHASE = "phase2n_final_test_inference"
 EXPECTED_OUTPUT_RELATIVE = Path("outputs/phase2n/week2_pilot_inference")
 FULL_VALIDATION_OUTPUT_RELATIVE = Path("outputs/phase2n/full_validation_inference")
+FINAL_TEST_OUTPUT_RELATIVE = Path("outputs/phase2n/final_test_inference")
 EXPECTED_TRAINING_RUN_RELATIVE = Path("outputs/phase2n/week2_pilot_training/slurm_264123")
 EXPECTED_EVAL_CONFIG_RELATIVE = Path("configs/phase2n_week2_pilot_eval_cases.json")
 FULL_VALIDATION_EVAL_CONFIG_RELATIVE = Path("configs/phase2n_full_validation_manifest.json")
+FINAL_TEST_EVAL_CONFIG_RELATIVE = Path("configs/phase2n_final_test_manifest.json")
 EXPECTED_VARIANT_ORDER = (
     "pc_s1_step160",
     "pc_s1_step320",
@@ -63,6 +66,7 @@ FULL_VALIDATION_VARIANT_ORDER = (
     "pc_s1_step160",
     "pc_full_step320",
 )
+FINAL_TEST_VARIANT_ORDER = ("pc_full_step320",)
 VARIANT_SUCCESS_TOKENS = {
     "pc_s1_step160": "PHASE2N_WEEK2_PC_S1_STEP160_INFERENCE_OK",
     "pc_s1_step320": "PHASE2N_WEEK2_PC_S1_STEP320_INFERENCE_OK",
@@ -73,8 +77,13 @@ FULL_VALIDATION_VARIANT_SUCCESS_TOKENS = {
     "pc_s1_step160": "PHASE2N_FULL_VALIDATION_PC_S1_STEP160_INFERENCE_OK",
     "pc_full_step320": "PHASE2N_FULL_VALIDATION_PC_FULL_STEP320_INFERENCE_OK",
 }
+FINAL_TEST_VARIANT_SUCCESS_TOKENS = {
+    "pc_full_step320": "PHASE2N_FINAL_TEST_PC_FULL_STEP320_INFERENCE_OK",
+}
 FINAL_SUCCESS_TOKEN = "PHASE2N_WEEK2_PILOT_INFERENCE_OK"
 FULL_VALIDATION_FINAL_SUCCESS_TOKEN = "PHASE2N_FULL_VALIDATION_INFERENCE_OK"
+FINAL_TEST_FINAL_SUCCESS_TOKEN = "PHASE2N_FINAL_TEST_INFERENCE_OK"
+FINAL_TEST_CASE_SUCCESS_TOKEN = "PHASE2N_FINAL_TEST_CASE_OK"
 TRAINING_SUCCESS_TOKENS = {
     "root": "PHASE2N_WEEK2_PILOT_TRAINING_OK",
     "pc_s1": "PHASE2N_WEEK2_PC_S1_TRAINING_OK",
@@ -124,35 +133,56 @@ def is_full_validation(values: Mapping[str, Any]) -> bool:
     return values.get("phase") == FULL_VALIDATION_PHASE
 
 
+def is_final_test(values: Mapping[str, Any]) -> bool:
+    return values.get("phase") == FINAL_TEST_PHASE
+
+
+def is_fixed_run_profile(values: Mapping[str, Any]) -> bool:
+    return is_full_validation(values) or is_final_test(values)
+
+
 def configured_variant_order(values: Mapping[str, Any]) -> tuple[str, ...]:
-    return (
-        FULL_VALIDATION_VARIANT_ORDER
-        if is_full_validation(values)
-        else EXPECTED_VARIANT_ORDER
-    )
+    if is_final_test(values):
+        return FINAL_TEST_VARIANT_ORDER
+    if is_full_validation(values):
+        return FULL_VALIDATION_VARIANT_ORDER
+    return EXPECTED_VARIANT_ORDER
 
 
 def configured_split_counts(values: Mapping[str, Any]) -> dict[str, int]:
+    if is_final_test(values):
+        return {"val": 0, "train_sanity": 0, "test": 11}
     if is_full_validation(values):
         return {"val": 4, "train_sanity": 0, "test": 0}
     return {"val": 6, "train_sanity": 2, "test": 0}
 
 
 def configured_variant_success_token(values: Mapping[str, Any], variant_id: str) -> str:
-    tokens = (
-        FULL_VALIDATION_VARIANT_SUCCESS_TOKENS
-        if is_full_validation(values)
-        else VARIANT_SUCCESS_TOKENS
-    )
+    if is_final_test(values):
+        tokens = FINAL_TEST_VARIANT_SUCCESS_TOKENS
+    elif is_full_validation(values):
+        tokens = FULL_VALIDATION_VARIANT_SUCCESS_TOKENS
+    else:
+        tokens = VARIANT_SUCCESS_TOKENS
     return tokens[variant_id]
 
 
 def configured_final_success_token(values: Mapping[str, Any]) -> str:
-    return (
-        FULL_VALIDATION_FINAL_SUCCESS_TOKEN
-        if is_full_validation(values)
-        else FINAL_SUCCESS_TOKEN
-    )
+    if is_final_test(values):
+        return FINAL_TEST_FINAL_SUCCESS_TOKEN
+    if is_full_validation(values):
+        return FULL_VALIDATION_FINAL_SUCCESS_TOKEN
+    return FINAL_SUCCESS_TOKEN
+
+
+def configured_test_data_used(values: Mapping[str, Any]) -> bool:
+    return is_final_test(values)
+
+
+def configured_selection_provenance(values: Mapping[str, Any]) -> dict[str, bool]:
+    if is_final_test(values):
+        return {"test_data_used_for_selection": False}
+    return {}
 
 
 def read_json_object(path: str | Path) -> dict[str, Any]:
@@ -379,6 +409,59 @@ def validate_full_validation_cases(
         raise ValueError("full-validation inference cases do not match the derived remaining four")
     if len(cases) != 4:
         raise ValueError("full-validation inference must contain exactly four cases")
+    return tuple(cases)
+
+
+def load_final_test_builder(project_root: Path) -> Any:
+    import importlib.util
+
+    source = project_root / "scripts" / "phase2n_build_final_test_manifest.py"
+    spec = importlib.util.spec_from_file_location("_phase2n_final_test_manifest", source)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not load final-test manifest builder: {source}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def validate_final_test_cases(
+    manifest_config: Path,
+    project_root: Path,
+) -> tuple[dict[str, Any], ...]:
+    builder = load_final_test_builder(project_root)
+    resolved = builder.build_manifest(
+        manifest_config,
+        project_root,
+        require_new_outputs=False,
+        validate_files=True,
+    )
+    if resolved.get("split_counts") != {"val": 0, "train_sanity": 0, "test": 11}:
+        raise ValueError("final-test manifest is not test-only 0/0/11")
+    if resolved.get("candidate_variants") != ["pc_full_step320"]:
+        raise ValueError("final-test manifest does not freeze PC-Full step 320 alone")
+    cases = []
+    for row in resolved["cases"]:
+        if row["source_split"] != "test" or row["eval_split"] != "test":
+            raise ValueError(f"final-test case is not test-only: {row['asset_id']}")
+        cases.append(
+            {
+                "asset_id": row["asset_id"],
+                "eval_split": "test",
+                "source_split": "test",
+                "selection_stratum": "phase2n_final_test",
+                "selection_rationale": (
+                    "Canonical full101 test split; held out from Phase 2N candidate "
+                    "and checkpoint selection."
+                ),
+                "mesh_path": row["mesh_path"],
+                "input_image_path": row["reference_paths"]["005"],
+                "reference_image_path": row["reference_paths"]["005"],
+                "selected_input_view": "005",
+                "reference_lighting": "AL",
+            }
+        )
+    if [case["asset_id"] for case in cases] != resolved["test_ids"] or len(cases) != 11:
+        raise ValueError("final-test inference cases do not match the canonical 11 assets")
     return tuple(cases)
 
 
@@ -640,19 +723,25 @@ def validate_config(
     config = read_json_object(path)
     phase = config.get("phase")
     full_validation = phase == FULL_VALIDATION_PHASE
-    expected_keys = FULL_VALIDATION_CONFIG_KEYS if full_validation else EXPECTED_CONFIG_KEYS
+    final_test = phase == FINAL_TEST_PHASE
+    fixed_profile = full_validation or final_test
+    expected_keys = FULL_VALIDATION_CONFIG_KEYS if fixed_profile else EXPECTED_CONFIG_KEYS
     if set(config) != expected_keys:
         raise ValueError("Inference config fields differ from the frozen schema")
-    if phase not in {PILOT_PHASE, FULL_VALIDATION_PHASE}:
+    if phase not in {PILOT_PHASE, FULL_VALIDATION_PHASE, FINAL_TEST_PHASE}:
         raise ValueError(f"Unsupported inference phase: {phase!r}")
-    variant_order = (
-        FULL_VALIDATION_VARIANT_ORDER if full_validation else EXPECTED_VARIANT_ORDER
-    )
+    variant_order = configured_variant_order(config)
     expected_output = (
-        FULL_VALIDATION_OUTPUT_RELATIVE if full_validation else EXPECTED_OUTPUT_RELATIVE
+        FINAL_TEST_OUTPUT_RELATIVE
+        if final_test
+        else FULL_VALIDATION_OUTPUT_RELATIVE
+        if full_validation
+        else EXPECTED_OUTPUT_RELATIVE
     )
     expected_eval = (
-        FULL_VALIDATION_EVAL_CONFIG_RELATIVE
+        FINAL_TEST_EVAL_CONFIG_RELATIVE
+        if final_test
+        else FULL_VALIDATION_EVAL_CONFIG_RELATIVE
         if full_validation
         else EXPECTED_EVAL_CONFIG_RELATIVE
     )
@@ -680,17 +769,24 @@ def validate_config(
             raise ValueError("Training run path is not the audited slurm_264123 directory")
         if eval_cases_config != (root / expected_eval).resolve():
             raise ValueError("Evaluation manifest path is not the expected frozen config")
-    if full_validation:
-        _require_exact(config, "fixed_run_id", "phase2n_full_validation_infer_v1")
+    if fixed_profile:
+        expected_run_id = (
+            "phase2n_final_test_infer_v1"
+            if final_test
+            else "phase2n_full_validation_infer_v1"
+        )
+        _require_exact(config, "fixed_run_id", expected_run_id)
         _require_exact(config, "fail_if_run_exists", True)
         fixed_run = output_root / str(config["fixed_run_id"])
-        if fixed_run.exists():
+        if final_test and fixed_run.exists():
             raise ValueError(
-                f"full-validation inference run already exists; refusing overwrite: {fixed_run}"
+                f"fixed inference run already exists; refusing overwrite: {fixed_run}"
             )
     training_report = validate_training_run(training_run_dir)
     cases = (
-        validate_full_validation_cases(eval_cases_config, root)
+        validate_final_test_cases(eval_cases_config, root)
+        if final_test
+        else validate_full_validation_cases(eval_cases_config, root)
         if full_validation
         else validate_frozen_cases(eval_cases_config, root)
     )
@@ -731,7 +827,12 @@ def run_check_only(config_path: str | Path, project_root: str | Path = PROJECT_R
             f"bytes={artifact.get('byte_size', variant['expected_checkpoint_byte_size'])} "
             f"sha256={artifact.get('sha256', variant['expected_checkpoint_sha256'])} status=OK"
         )
-    if is_full_validation(validated.values):
+    if is_final_test(validated.values):
+        print(
+            "final_test_cases=11 val=0 train_sanity=0 test=11 "
+            "selected_input_view=005 reference_lighting=AL"
+        )
+    elif is_full_validation(validated.values):
         print(
             "remaining_cases=4 val=4 train_sanity=0 test=0 "
             "selected_input_view=005 reference_lighting=AL"
@@ -745,7 +846,13 @@ def run_check_only(config_path: str | Path, project_root: str | Path = PROJECT_R
     case_count = len(validated.cases)
     print(f"corrected_input_base_root={base['root']} coverage={base['covered_case_count']}/{case_count}")
     print(f"historical_full80_root={full['root']} coverage={full['covered_case_count']}/{case_count}")
-    if is_full_validation(validated.values):
+    if is_final_test(validated.values):
+        print(
+            f"new_outputs={len(variant_order) * case_count} split_counts={split_counts} "
+            f"fixed_run_id={validated.values['fixed_run_id']}"
+        )
+        print("PHASE2N_FINAL_TEST_INFERENCE_READINESS_OK")
+    elif is_full_validation(validated.values):
         print(
             f"new_outputs={len(variant_order) * case_count} split_counts={split_counts} "
             f"fixed_run_id={validated.values['fixed_run_id']}"
@@ -961,6 +1068,8 @@ def resolved_case_provenance(validated: ValidatedInferenceConfig) -> dict[str, A
         "split_counts": configured_split_counts(validated.values),
         "selected_input_view": "005",
         "reference_lighting": "AL",
+        "test_data_used": configured_test_data_used(validated.values),
+        **configured_selection_provenance(validated.values),
         "cases": records,
     }
 
@@ -988,7 +1097,8 @@ def ensure_runtime_provenance(
         "inference_seed": 0,
         "selected_input_view": "005",
         "reference_lighting": "AL",
-        "test_data_used": False,
+        "test_data_used": configured_test_data_used(validated.values),
+        **configured_selection_provenance(validated.values),
         "runtime_device": dict(runtime_device),
         "project_git_head": _git_head(validated.project_root),
     }
@@ -1076,7 +1186,8 @@ def _case_manifest_expected(
             "reference_lighting": "AL",
             "inference_seed": 0,
         },
-        "test_data_used": False,
+        "test_data_used": configured_test_data_used(validated.values),
+        **configured_selection_provenance(validated.values),
     }
 
 
@@ -1088,6 +1199,10 @@ def validate_completed_case(
 ) -> dict[str, Any]:
     output_glb = require_nonzero_file(case_dir / "textured_mesh.glb", f"{variant['variant_id']} output")
     manifest_path = require_nonzero_file(case_dir / "inference_manifest.json", "case inference manifest")
+    if is_final_test(validated.values):
+        case_success = require_nonzero_file(case_dir / "_SUCCESS", "case success marker")
+        if case_success.read_text(encoding="utf-8") != FINAL_TEST_CASE_SUCCESS_TOKEN + "\n":
+            raise RuntimeError(f"Completed case success marker mismatch: {case_success}")
     manifest = read_json_object(manifest_path)
     expected = _case_manifest_expected(case, variant, output_glb, validated)
     for key, value in expected.items():
@@ -1104,7 +1219,9 @@ def validate_completed_case(
 def _variant_summary_markdown(summary: Mapping[str, Any]) -> str:
     counts = summary["split_counts"]
     title = (
-        "Phase 2N Full Validation"
+        "Phase 2N Final Test"
+        if summary.get("phase", PILOT_PHASE) == FINAL_TEST_PHASE
+        else "Phase 2N Full Validation"
         if summary.get("phase", PILOT_PHASE) == FULL_VALIDATION_PHASE
         else "Phase 2N Week 2"
     )
@@ -1116,7 +1233,8 @@ def _variant_summary_markdown(summary: Mapping[str, Any]) -> str:
             f"- Scope: {summary['scope']}",
             f"- Checkpoint step: {summary['checkpoint_step']}",
             f"- Cases: {summary['case_count']} "
-            f"({counts['val']} val, {counts['train_sanity']} train-sanity, 0 test)",
+            f"({counts['val']} val, {counts['train_sanity']} train-sanity, "
+            f"{counts['test']} test)",
             "- Every case used selected input view 005, AL lighting, and fixed-mesh inference.",
             "- This variant started from a fresh official true-PBR base.",
             "",
@@ -1160,7 +1278,8 @@ def validate_completed_variant(
         "case_count": len(cases),
         "split_counts": split_counts,
         "fresh_official_true_pbr_base": True,
-        "test_data_used": False,
+        "test_data_used": configured_test_data_used(validated.values),
+        **configured_selection_provenance(validated.values),
     }
     for key, value in expected_summary.items():
         if summary.get(key) != value:
@@ -1216,7 +1335,10 @@ def run_variant(
 
         manifest_paths: list[str] = []
         for case_index, case in enumerate(validated.cases):
-            if case["eval_split"] == "test" or case["source_split"] == "test":
+            if (
+                not is_final_test(validated.values)
+                and (case["eval_split"] == "test" or case["source_split"] == "test")
+            ):
                 raise RuntimeError(f"Test case reached runtime: {case['asset_id']}")
             case_dir = variant_dir / str(case["asset_id"])
             if case_dir.exists():
@@ -1244,6 +1366,12 @@ def run_variant(
             )
             manifest_path = case_dir / "inference_manifest.json"
             write_once_json(manifest_path, manifest, run_dir)
+            if is_final_test(validated.values):
+                write_once_text(
+                    case_dir / "_SUCCESS",
+                    FINAL_TEST_CASE_SUCCESS_TOKEN + "\n",
+                    run_dir,
+                )
             manifest_paths.append(str(manifest_path.resolve()))
             print(f"variant={variant_id} case={case['asset_id']} split={case['eval_split']} status=OK")
             if case_index == 0:
@@ -1263,7 +1391,8 @@ def run_variant(
             "fresh_official_true_pbr_base": True,
             "fixed_mesh": True,
             "use_remesh": False,
-            "test_data_used": False,
+            "test_data_used": configured_test_data_used(validated.values),
+            **configured_selection_provenance(validated.values),
         }
         write_once_json(variant_dir / "summary.json", summary, run_dir)
         write_once_text(variant_dir / "summary.md", _variant_summary_markdown(summary), run_dir)
@@ -1281,16 +1410,19 @@ def run_variant(
 
 def _final_summary_markdown(summary: Mapping[str, Any]) -> str:
     full_validation = summary["phase"] == FULL_VALIDATION_PHASE
+    final_test = summary["phase"] == FINAL_TEST_PHASE
     counts = summary["split_counts_per_variant"]
     variants_line = (
         f"- Variants: {', '.join(summary['variant_order'])}."
-        if full_validation
+        if full_validation or final_test
         else "- Variants: PC-S1 steps 160/320 and PC-Full steps 160/320."
     )
     return "\n".join(
         [
             (
-                "# Phase 2N Full Validation Candidate Inference"
+                "# Phase 2N Final-Test Candidate Inference"
+                if final_test
+                else "# Phase 2N Full Validation Candidate Inference"
                 if full_validation
                 else "# Phase 2N Week 2 Scope-Checkpoint Pilot Inference"
             ),
@@ -1299,7 +1431,7 @@ def _final_summary_markdown(summary: Mapping[str, Any]) -> str:
             f"- Run ID: {summary['run_id']}",
             variants_line,
             f"- Cases per variant: {counts['val']} validation + "
-            f"{counts['train_sanity']} train-sanity; no test.",
+            f"{counts['train_sanity']} train-sanity + {counts['test']} test.",
             "- Every variant began from a newly loaded identical official true-PBR base.",
             "- Existing corrected-input base and historical full80 outputs were reused, not rerun.",
             "",
@@ -1331,7 +1463,8 @@ def finalize_run(run_dir: Path, validated: ValidatedInferenceConfig) -> dict[str
         "fresh_official_true_pbr_base_per_variant": True,
         "checkpoint_state_accumulation": False,
         "baseline_outputs_rerun": False,
-        "test_data_used": False,
+        "test_data_used": configured_test_data_used(validated.values),
+        **configured_selection_provenance(validated.values),
     }
     write_once_json(run_dir / "summary.json", summary, run_dir)
     write_once_text(run_dir / "summary.md", _final_summary_markdown(summary), run_dir)
@@ -1351,25 +1484,27 @@ def run_inference(
     variant_order = configured_variant_order(validated.values)
     if not requested or any(variant not in variant_order for variant in requested):
         raise ValueError(f"Runtime variants must be drawn from {variant_order}")
-    full_validation = is_full_validation(validated.values)
-    if full_validation and requested != variant_order:
+    fixed_profile = is_fixed_run_profile(validated.values)
+    if is_full_validation(validated.values) and requested != variant_order:
         raise ValueError("full-validation inference must run both configured candidates together")
+    if is_final_test(validated.values) and requested != variant_order:
+        raise ValueError("final-test inference must run the frozen candidate exactly once")
     safe_run_id = _safe_run_id(run_id)
     run_dir = (validated.output_root / safe_run_id).resolve()
     if not is_relative_to(run_dir, validated.output_root):
         raise ValueError(f"Run directory escapes the output root: {run_dir}")
-    if full_validation and safe_run_id != validated.values["fixed_run_id"]:
+    if fixed_profile and safe_run_id != validated.values["fixed_run_id"]:
         raise ValueError(
-            f"full-validation run ID must be {validated.values['fixed_run_id']!r}"
+            f"fixed run ID must be {validated.values['fixed_run_id']!r}"
         )
-    if full_validation and run_dir.exists():
-        raise FileExistsError(f"refusing to overwrite full-validation run: {run_dir}")
+    if fixed_profile and run_dir.exists():
+        raise FileExistsError(f"refusing to overwrite fixed inference run: {run_dir}")
 
     import torch
 
     runtime_device = validate_runtime_device(torch, float(validated.values["minimum_gpu_memory_gib"]))
     validate_free_disk(validated.output_root, float(validated.values["minimum_free_disk_gib"]))
-    run_dir.mkdir(parents=True, exist_ok=not full_validation)
+    run_dir.mkdir(parents=True, exist_ok=not fixed_profile)
     ensure_runtime_provenance(run_dir, validated, runtime_device)
     for variant_id in requested:
         run_variant(validated.variants[variant_id], validated, run_dir, torch_module=torch)
@@ -1401,8 +1536,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not args.run_id:
         raise ValueError("--run-all and --variant require --run-id")
     validated = validate_config(args.config)
-    if is_full_validation(validated.values) and not args.run_all:
-        raise ValueError("full-validation inference requires --run-all")
+    if is_fixed_run_profile(validated.values) and not args.run_all:
+        raise ValueError("fixed-profile inference requires --run-all")
     variants = configured_variant_order(validated.values) if args.run_all else (args.variant,)
     run_dir = run_inference(validated, run_id=args.run_id, variants=variants)
     print(f"run_dir={run_dir}")

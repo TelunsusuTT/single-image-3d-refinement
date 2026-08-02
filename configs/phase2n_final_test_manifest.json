@@ -1,0 +1,46 @@
+{
+  "phase": "phase2n_final_test_manifest",
+  "freeze_record": "configs/phase2n_final_test_freeze.json",
+  "full101_split": "data/manifests/datav2_frame_panels/datav2_frame_panels_full101_split.json",
+  "historical_eval_cases": "outputs/phase2l/datav2_frame_panels/full80_eval_truepbr500/eval_cases.json",
+  "historical_base_root": "outputs/phase2l/datav2_frame_panels/full80_eval_truepbr500/infer/base",
+  "historical_full80_root": "outputs/phase2l/datav2_frame_panels/full80_eval_truepbr500/infer/finetuned",
+  "historical_full80_checkpoint": "checkpoints/datav2_frame_full80_truepbr_500_lr1e6/datav2_frame_full80_truepbr_500_lr1e6-stepstep=500.ckpt",
+  "training_run_dir": "outputs/phase2n/week2_pilot_training/slurm_264123",
+  "new_inference_run": "outputs/phase2n/final_test_inference/phase2n_final_test_infer_v1",
+  "output_manifest": "outputs/phase2n/final_test_manifest/phase2n_final_test_manifest_v1.json",
+  "selected_input_view": "005",
+  "reference_lighting": "AL",
+  "fixed_mesh": true,
+  "use_remesh": false,
+  "view_ids": [
+    "000",
+    "001",
+    "002",
+    "003",
+    "004",
+    "005"
+  ],
+  "variant_order": [
+    "corrected_input_base",
+    "historical_full80_500",
+    "pc_full_step320"
+  ],
+  "candidate_variant": {
+    "variant_id": "pc_full_step320",
+    "scope": "pc_full",
+    "step": 320,
+    "checkpoint_manifest_path": "outputs/phase2n/week2_pilot_training/slurm_264123/pc_full/checkpoints/step_320_manifest.json",
+    "checkpoint_sha256": "b93f4d34291a21097b8d763b3d5c18d4b0a82796049ce0711aaac552b310d18e"
+  },
+  "expected_counts": {
+    "test_assets": 11,
+    "validation_assets": 0,
+    "train_sanity_assets": 0,
+    "variants": 3,
+    "source_glbs": 33,
+    "reused_glbs": 22,
+    "new_inference_glbs": 11,
+    "planned_renders": 198
+  }
+}

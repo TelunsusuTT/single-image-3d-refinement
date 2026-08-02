@@ -2,10 +2,12 @@
 
 ## Summary
 
-The project is preparing Phase 2N full validation after successful Week 2
-training, inference, and pilot rendered-view evaluation. Training run
-`slurm_264123`, four-checkpoint inference run `slurm_264581`, and rendered
-evaluation `phase2n_week2_eval_v2` are complete without test data.
+The project is preparing the frozen Phase 2N final test after successful Week 2
+training, pilot evaluation, and complete ten-asset validation. Training run
+`slurm_264123`, pilot inference run `slurm_264581`, rendered pilot
+`phase2n_week2_eval_v2`, and full validation
+`phase2n_full_validation_eval_v1` are complete without using test data for
+Phase 2N candidate or checkpoint selection.
 
 Phase 2M refview+DINO LoRA is complete and negative on held-out cases. Phase 2N
 now has a protocol-corrected no-augmentation reader, exact PC-S1 and PC-Full
@@ -102,13 +104,11 @@ corrected-input base and historical full80 GLBs provide complete compatible
 coverage for those same cases. No baseline inference was rerun, checkpoint
 state did not accumulate across variants, and no test case was used.
 
-Stage 5 now prepares a local, process-isolated Blender rendered-view comparison
-of six variants: corrected-input base, historical full80-500, and PC-S1/PC-Full
-at steps 160/320. It uses the frozen six validation and two train-sanity cases,
-AL references, views `000-005`, and the historical Phase 2K camera and metric
-implementations. The plan contains 48 GLBs and 288 new PNG renders. The
-preliminary concern that backside leakage remains is only a hypothesis until
-runtime metrics and visual boards exist.
+Stage 5 used a local, process-isolated Blender rendered-view comparison of six
+variants: corrected-input base, historical full80-500, and PC-S1/PC-Full at
+steps 160/320. It used the frozen six validation and two train-sanity cases, AL
+references, views `000-005`, and the historical Phase 2K camera and metric
+implementations. The completed plan contains 48 GLBs and 288 PNG renders.
 
 The first local Stage 5 run, `phase2n_week2_eval_v1`, reached a clean Blender
 3.6 background startup but stopped before the first GLB import. The internal
@@ -125,12 +125,14 @@ review retained `pc_s1_step160` as the conservative safety candidate and
 `pc_full_step160` remain useful pilot-only checkpoint-step ablations and will
 not be expanded.
 
-Full-validation preparation now targets exactly all ten assets in the frozen
-full101 validation split, with zero train-sanity and zero test assets. It
-reuses 20 Phase 2L baseline GLBs and 12 candidate GLBs from the six pilot
-validation assets. Only the two selected candidates on the four remaining
-validation assets require new inference, for exactly eight new GLBs. The final
-clean rendered matrix will contain 40 source GLBs and 240 six-view rows.
+Full validation completed on exactly all ten assets in the frozen full101
+validation split, with zero train-sanity and zero test assets. The clean run
+contains 40 source GLBs and 240 six-view rows. Review selected
+`pc_full_step320` as the quality-oriented final candidate: validation MAE delta
+was `-0.44887108272976345`, SSIM-like delta was
+`+0.024508462795182862`, front/input/non-front means were better, and four
+assets had non-front leakage regressions. `pc_s1_step160` remains a validation
+ablation and is excluded from final test.
 
 ## No Full80-1000 Yet
 
@@ -140,8 +142,10 @@ is mixed, and visual boards still show leakage/ambiguity.
 
 ## Current Decision
 
-Audit the full-validation 10/6/4 split and reuse matrix, then manually run only
-the eight required A100 candidate inferences. After those outputs validate,
-render all ten validation assets and four variants into one new local
-full-validation run. Selection remains validation-only, with non-front/leakage
-safety checked before front gains. The test split remains untouched.
+Freeze and audit the exact 11-asset full101 test split, then manually run only
+the 11 required `pc_full_step320` A100 inferences. Reuse the 22 compatible
+Phase 2L test baseline GLBs and render one clean 11 x 3 x 6 final matrix after
+inference succeeds. The test split is held out from Phase 2N candidate and
+checkpoint selection; its report cannot drive tuning or checkpoint
+replacement. It was previously evaluated for the historical Phase 2L full80
+baseline and is not described as never inspected project-wide.
