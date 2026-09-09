@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "method_id": "view_selective_conditioning_gating",
+  "display_name": "View-Selective Conditioning Gating",
+  "category": "inference_control",
+  "description": "Inference-time camera-aware control of Reference Attention and DINO-conditioning branch outputs.",
+  "baseline_config": "configs/baseline/corrected_conditioning_baseline.json",
+  "weights": {
+    "initialization": "official_hunyuan3d_paint_pbr",
+    "training_updates": 0,
+    "checkpoint_loading": false
+  },
+  "training": null,
+  "gating": {
+    "policy": "view_selective_gating",
+    "target_pathways": [
+      "reference_attention",
+      "dino_conditioning"
+    ],
+    "preserved_pathway": "multi_view_attention",
+    "generation_view_slots": [
+      "front",
+      "right",
+      "back",
+      "left",
+      "top",
+      "bottom"
+    ],
+    "reference_slot": 0,
+    "suppression_threshold_degrees": 120,
+    "comparison": "angular_separation_greater_than_or_equal_to_threshold",
+    "keep_mask": [
+      1,
+      1,
+      0,
+      1,
+      1,
+      1
+    ],
+    "suppressed_value": 0
+  },
+  "inference": {
+    "runner": {
+      "status": "planned",
+      "executor": "python",
+      "entrypoint": "scripts/infer_view_selective_conditioning_gating.py",
+      "working_directory": ".",
+      "arguments": [
+        "--config",
+        "{config}",
+        "--case-dir",
+        "{case_dir}",
+        "--output-dir",
+        "{output_dir}"
+      ]
+    }
+  },
+  "evaluation_config": "configs/evaluation/fixed_view_rerendering.json"
+}

@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "method_id": "reference_conditioning_lora",
+  "display_name": "Reference-Conditioning LoRA",
+  "category": "adaptation",
+  "description": "Rank-4 adapter training restricted to Reference Attention and DINO-conditioning q/k/v/output projections.",
+  "baseline_config": "configs/baseline/corrected_conditioning_baseline.json",
+  "weights": {
+    "initialization": "official_hunyuan3d_paint_pbr",
+    "base_weights_frozen": true,
+    "checkpoint_format": "adapter_only"
+  },
+  "training": {
+    "training_assets": 80,
+    "updates": 300,
+    "learning_rate": 5e-05,
+    "schedule": "constant",
+    "rank": 4,
+    "alpha": 4.0,
+    "dropout": 0.05,
+    "target_pathways": [
+      "reference_attention",
+      "dino_conditioning"
+    ],
+    "target_projections": [
+      "query",
+      "key",
+      "value",
+      "output"
+    ],
+    "runner": {
+      "status": "planned",
+      "executor": "python",
+      "entrypoint": "scripts/train_reference_conditioning_lora.py",
+      "working_directory": ".",
+      "arguments": [
+        "--config",
+        "{config}",
+        "--run-id",
+        "{run_id}"
+      ]
+    }
+  },
+  "inference": {
+    "adapter_scales": [
+      0.5,
+      0.75,
+      1.0
+    ],
+    "runner": {
+      "status": "planned",
+      "executor": "python",
+      "entrypoint": "scripts/infer_reference_conditioning_lora.py",
+      "working_directory": ".",
+      "arguments": [
+        "--config",
+        "{config}",
+        "--case-dir",
+        "{case_dir}",
+        "--output-dir",
+        "{output_dir}",
+        "--checkpoint",
+        "{checkpoint}"
+      ]
+    }
+  },
+  "evaluation_config": "configs/evaluation/fixed_view_rerendering.json"
+}

@@ -1,4 +1,4 @@
-"""Adapter-only save/load helpers for Phase 2M."""
+"""Adapter-only save/load helpers for Reference-Conditioning LoRA."""
 
 from __future__ import annotations
 

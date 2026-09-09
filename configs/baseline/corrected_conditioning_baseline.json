@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "method_id": "corrected_conditioning_baseline",
+  "display_name": "Corrected-Conditioning Baseline",
+  "category": "baseline",
+  "description": "Official Hunyuan3D-Paint weights evaluated with the controlled fixed-mesh, corrected-conditioning protocol.",
+  "dataset": {
+    "asset_class": "framed_panel",
+    "source": "Amazon Berkeley Objects",
+    "split_sizes": {
+      "train": 80,
+      "validation": 10,
+      "test": 11
+    }
+  },
+  "view_roles": {
+    "conditioning_view": "005",
+    "generation_view_slots": [
+      "front",
+      "right",
+      "back",
+      "left",
+      "top",
+      "bottom"
+    ],
+    "evaluation_views": [
+      "000",
+      "001",
+      "002",
+      "003",
+      "004",
+      "005"
+    ]
+  },
+  "weights": {
+    "initialization": "official_hunyuan3d_paint_pbr",
+    "training_updates": 0
+  },
+  "inference_protocol": {
+    "fixed_mesh": true,
+    "use_remesh": false,
+    "seed": 0,
+    "resolution": 512,
+    "max_num_view": 6
+  },
+  "training": null,
+  "inference": {
+    "runner": {
+      "status": "ready",
+      "executor": "python",
+      "entrypoint": "scripts/run_paint_inference.py",
+      "working_directory": ".",
+      "arguments": [
+        "--case-dir",
+        "{case_dir}",
+        "--output-dir",
+        "{output_dir}",
+        "--mode",
+        "baseline",
+        "--conditioning-view",
+        "005",
+        "--max-num-view",
+        "6",
+        "--resolution",
+        "512",
+        "--device",
+        "cuda",
+        "--seed",
+        "0",
+        "--no-remesh"
+      ]
+    }
+  },
+  "evaluation_config": "configs/evaluation/fixed_view_rerendering.json"
+}

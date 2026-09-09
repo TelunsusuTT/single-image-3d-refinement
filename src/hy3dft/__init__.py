@@ -1,1 +1,1 @@
-"""Project-local helpers for Hunyuan3D-Paint fine-tuning experiments."""
+"""Reusable components for Hunyuan3D 2.1 Paint-stage experiments."""

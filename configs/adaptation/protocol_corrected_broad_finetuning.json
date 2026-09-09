@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "method_id": "protocol_corrected_broad_finetuning",
+  "display_name": "Protocol-Corrected Broad-Scope Fine-Tuning",
+  "category": "adaptation",
+  "description": "Broad partial-network adaptation using the deterministic protocol-corrected conditioning schedule.",
+  "baseline_config": "configs/baseline/corrected_conditioning_baseline.json",
+  "weights": {
+    "initialization": "fresh_official_hunyuan3d_paint_pbr",
+    "trainable_scope": "broad_scope",
+    "checkpoint_format": "trainable_scope_checkpoint_v1",
+    "trainable_parameters": 1046761668
+  },
+  "training": {
+    "training_assets": 80,
+    "updates": 320,
+    "evaluated_checkpoint_step": 320,
+    "peak_learning_rate": 5e-07,
+    "warmup_updates": 50,
+    "batch_size": 1,
+    "image_size": 512,
+    "base_seed": 42,
+    "schedule_seed": 42,
+    "num_workers": 0,
+    "gradient_clip_norm": 1.0,
+    "precision": "bf16",
+    "checkpoint_steps": [
+      160,
+      320
+    ],
+    "log_every_n_steps": 10,
+    "conditioning_dropout_policy": {
+      "drop_cond_prob": 0.1,
+      "require_multi_view_attention_active": true,
+      "maximum_seed_retries": 128
+    },
+    "reference_lighting_policy": {
+      "available_conditions": [
+        "AL",
+        "ENVMAP",
+        "PL"
+      ],
+      "images_per_sample": 2,
+      "selection": "ordered_uniform_without_replacement"
+    },
+    "augmentation": "none",
+    "conditioning_view_probabilities": {
+      "005": 0.5,
+      "004": 0.3,
+      "000": 0.05,
+      "001": 0.05,
+      "002": 0.05,
+      "003": 0.05
+    },
+    "runner": {
+      "status": "planned",
+      "executor": "python",
+      "entrypoint": "scripts/train_protocol_corrected_adaptation.py",
+      "working_directory": ".",
+      "arguments": [
+        "--config",
+        "{config}",
+        "--run-id",
+        "{run_id}"
+      ]
+    }
+  },
+  "inference": {
+    "runner": {
+      "status": "planned",
+      "executor": "python",
+      "entrypoint": "scripts/infer_protocol_corrected_adaptation.py",
+      "working_directory": ".",
+      "arguments": [
+        "--config",
+        "{config}",
+        "--case-dir",
+        "{case_dir}",
+        "--output-dir",
+        "{output_dir}",
+        "--checkpoint",
+        "{checkpoint}"
+      ]
+    }
+  },
+  "evaluation_config": "configs/evaluation/fixed_view_rerendering.json"
+}

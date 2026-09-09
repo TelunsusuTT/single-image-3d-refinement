@@ -1,0 +1,14 @@
+# Lightweight project overlay. GPU frameworks and Hunyuan3D must be installed
+# from their official instructions so that PyTorch and CUDA builds remain
+# compatible with the target machine.
+name: hy3dpaint-finetune
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.10
+  - pip
+  - numpy>=1.24
+  - pillow>=9
+  - pytest>=7
+  - pip:
+      - -e .

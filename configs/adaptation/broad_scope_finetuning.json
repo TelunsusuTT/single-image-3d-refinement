@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "method_id": "broad_scope_finetuning",
+  "display_name": "Broad-Scope Fine-Tuning",
+  "category": "adaptation",
+  "description": "Direct Paint-stage adaptation of the broad partial-network scope used by the official training setup.",
+  "baseline_config": "configs/baseline/corrected_conditioning_baseline.json",
+  "weights": {
+    "initialization": "official_hunyuan3d_paint_pbr",
+    "trainable_scope": "broad_scope",
+    "checkpoint_format": "lightning_full_unet_state_dict"
+  },
+  "reported_runs": [
+    {
+      "training_assets": 32,
+      "updates": 500
+    },
+    {
+      "training_assets": 80,
+      "updates": 500,
+      "learning_rate": 1e-06
+    }
+  ],
+  "training": {
+    "default_run": {
+      "training_assets": 80,
+      "updates": 500,
+      "learning_rate": 1e-06,
+      "batch_size": 1,
+      "image_size": 512
+    },
+    "runner": {
+      "status": "planned",
+      "executor": "python",
+      "entrypoint": "scripts/train_broad_scope_finetuning.py",
+      "working_directory": ".",
+      "arguments": [
+        "--config",
+        "{config}",
+        "--run-id",
+        "{run_id}"
+      ]
+    }
+  },
+  "inference": {
+    "runner": {
+      "status": "ready",
+      "executor": "python",
+      "entrypoint": "scripts/run_paint_inference.py",
+      "working_directory": ".",
+      "arguments": [
+        "--case-dir",
+        "{case_dir}",
+        "--output-dir",
+        "{output_dir}",
+        "--mode",
+        "checkpoint",
+        "--checkpoint",
+        "{checkpoint}",
+        "--conditioning-view",
+        "005",
+        "--max-num-view",
+        "6",
+        "--resolution",
+        "512",
+        "--device",
+        "cuda",
+        "--seed",
+        "0",
+        "--no-remesh"
+      ]
+    }
+  },
+  "evaluation_config": "configs/evaluation/fixed_view_rerendering.json"
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "baseline_label": "Corrected-Conditioning Baseline",
+  "candidate_label": "Protocol-Corrected Broad-Scope Fine-Tuning",
+  "reference_image_path_template": "data/generated/paint_examples/{asset_id}/render_tex/{view_id}.png",
+  "cases": {
+    "ASSET_ID": {
+      "asset_label": "ASSET_ID",
+      "baseline_glb": "outputs/inference/corrected_conditioning_baseline/ASSET_ID/textured_mesh.glb",
+      "candidate_glb": "outputs/inference/protocol_corrected_broad_finetuning/ASSET_ID/textured_mesh.glb"
+    }
+  }
+}

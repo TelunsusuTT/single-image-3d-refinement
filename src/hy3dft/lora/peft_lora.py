@@ -70,11 +70,9 @@ def inject_lora(
 ) -> LoraInjectionResult:
     """Inject LoRA adapters.
 
-    The default `auto` path uses the local exact Linear fallback. PEFT/Diffusers
-    are detected and reported, but not used automatically because their generic
-    target matching can be too broad for the custom Hunyuan UNet. Passing
-    `backend="peft"` is intentionally rejected until a future gate proves exact
-    target safety for this model.
+    The default `auto` path uses the project's exact Linear implementation.
+    PEFT and Diffusers are detected for reporting but are not enabled because
+    their generic target matching is too broad for this custom Hunyuan UNet.
     """
 
     if backend not in {"auto", "local_linear_fallback", "peft", "diffusers"}:
@@ -82,8 +80,8 @@ def inject_lora(
     availability = backend_availability()
     if backend in {"peft", "diffusers"}:
         raise RuntimeError(
-            f"{backend} adapter backend is not enabled for this custom UNet scaffold; "
-            "use local_linear_fallback until exact target safety is proven."
+            f"{backend} adapter backend is not enabled for this custom UNet; "
+            "use the exact local Linear implementation."
         )
     freeze_all_parameters(model)
     wrapped = wrap_linear_modules(model, target_names, rank=rank, alpha=alpha, dropout=dropout)

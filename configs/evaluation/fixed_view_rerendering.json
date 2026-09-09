@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "evaluation_id": "fixed_view_rerendering",
+  "display_name": "Fixed-View Rerendering",
+  "description": "Six-view rerendering for front-surface fidelity and hidden-surface preservation.",
+  "camera": {
+    "projection": "orthographic",
+    "tracking_axis": "-Z",
+    "up_axis": "Y",
+    "target": [0.0, 0.0, 0.0],
+    "clip_start": 0.01,
+    "clip_end_margin": 20.0,
+    "distance_policy": {
+      "minimum": 4.0,
+      "diagonal_multiplier": 2.0,
+      "ortho_scale_multiplier": 1.0
+    },
+    "poses": [
+      {"view_id": "000", "azimuth_degrees": 0.0, "elevation_degrees": 18.0},
+      {"view_id": "001", "azimuth_degrees": 60.0, "elevation_degrees": 18.0},
+      {"view_id": "002", "azimuth_degrees": 120.0, "elevation_degrees": 18.0},
+      {"view_id": "003", "azimuth_degrees": 180.0, "elevation_degrees": 18.0},
+      {"view_id": "004", "azimuth_degrees": 240.0, "elevation_degrees": 18.0},
+      {"view_id": "005", "azimuth_degrees": 300.0, "elevation_degrees": 18.0}
+    ]
+  },
+  "rendering": {
+    "resolution": [512, 512],
+    "resolution_percentage": 100,
+    "file_format": "PNG",
+    "color_mode": "RGB",
+    "film_transparent": false,
+    "engine": "BLENDER_EEVEE_NEXT",
+    "engine_fallback": "BLENDER_EEVEE",
+    "view_transform": "Standard",
+    "look": "Medium High Contrast",
+    "exposure": 0.0,
+    "gamma": 1.0,
+    "background_color": [0.28, 0.28, 0.28],
+    "normalization": {
+      "target_max_extent": 2.0,
+      "camera_margin": 1.35
+    },
+    "lights": [
+      {
+        "name": "fixed_view_area_light",
+        "type": "AREA",
+        "location": [0.0, -3.0, 4.0],
+        "energy": 450.0,
+        "size": 5.0
+      }
+    ]
+  },
+  "view_groups": {
+    "all": ["000", "001", "002", "003", "004", "005"],
+    "front": ["004", "005"],
+    "conditioning": ["005"],
+    "non_front": ["000", "001", "002", "003"]
+  },
+  "metrics": {
+    "enabled": ["mae", "rmse", "psnr", "ssim_like"],
+    "data_range": 255.0,
+    "ssim_like": {
+      "implementation": "global_grayscale",
+      "k1": 0.01,
+      "k2": 0.03
+    }
+  },
+  "stages": {
+    "render": {
+      "runner": {
+        "status": "ready",
+        "executor": "blender_python",
+        "entrypoint": "scripts/render_fixed_views_blender.py",
+        "working_directory": ".",
+        "arguments": [
+          "--evaluation-config",
+          "{config}",
+          "--cases-config",
+          "{cases_config}",
+          "--output-root",
+          "{output_root}"
+        ]
+      }
+    },
+    "compare": {
+      "runner": {
+        "status": "ready",
+        "executor": "python",
+        "entrypoint": "scripts/compare_rendered_views.py",
+        "working_directory": ".",
+        "arguments": [
+          "--evaluation-config",
+          "{config}",
+          "--cases-config",
+          "{cases_config}",
+          "--output-root",
+          "{output_root}"
+        ]
+      }
+    },
+    "aggregate": {
+      "runner": {
+        "status": "ready",
+        "executor": "python",
+        "entrypoint": "scripts/aggregate_rendered_metrics.py",
+        "working_directory": ".",
+        "arguments": [
+          "--evaluation-config",
+          "{config}",
+          "--cases-config",
+          "{cases_config}",
+          "--output-root",
+          "{output_root}"
+        ]
+      }
+    }
+  }
+}
